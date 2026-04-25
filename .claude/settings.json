@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /d/Repos/thecroatiateam/motora-ia -type f -name *.json -o -type d -name node_modules)",
+      "Bash(ls -la \"/d/Repos/thecroatiateam/motora-ia/mobile/app/\\(app\\)/vehicle-detail/\")",
+      "Bash(wc -l \"/d/Repos/thecroatiateam/motora-ia/mobile/app/\\(app\\)/vehicle-detail/[id].tsx\")",
+      "Bash(find /d/Repos/thecroatiateam/motora-ia -type f \\\\\\(-name *functions* -o -name *backend* -o -name *deleteMaintenanceEntry* \\\\\\))",
+      "Bash(tail -200 \"/d/Repos/thecroatiateam/motora-ia/mobile/app/\\(app\\)/vehicle-detail/[id].tsx\")",
+      "Bash(xargs wc:*)",
+      "Bash(find /d/Repos/thecroatiateam/motora-ia -type f -path */mobile/services/firebase* -name *.ts -o -name *.tsx)",
+      "Bash(wait bc18arau5:*)",
+      "Bash(npm run:*)",
+      "Bash(find /d/Repos/thecroatiateam/motora-ia/mobile/src -type f \\\\\\(-name *.ts -o -name *.tsx \\\\\\))",
+      "Bash(find \"d:/Repos/thecroatiateam/motora-ia/mobile/app/\\(app\\)/vehicle-detail\" -type f)",
+      "Bash(find d:Reposthecroatiateammotora-ia -type f \\\\\\(-name *bluetooth* -o -name *obd* -o -name *ble* \\\\\\))",
+      "Bash(ls -la \"d:\\\\Repos\\\\thecroatiateam\\\\motora-ia\\\\mobile\\\\app\\\\\\(app\\)\")",
+      "Bash(grep -E \"\\\\.tsx$\")",
+      "Bash(ls -la \"/d/Repos/thecroatiateam/motora-ia/mobile/app/\\(app\\)/\")",
+      "Bash(ls -la \"/d/Repos/thecroatiateam/motora-ia/mobile/app/\\(auth\\)/\")",
+      "Bash(ls \"d:\\\\Repos\\\\thecroatiateam\\\\motora-ia\\\\mobile\\\\app\\\\\\(app\\)\"\")",
+      "Bash(grep -n \"console\\\\|log\\\\|Log\\\\|DEBUG\\\\|debug\" /d/Repos/thecroatiateam/motora-ia/mobile/src/features/diagnostics/services/obd/*.ts)",
+      "Bash(ls \"d:/Repos/thecroatiateam/motora-ia/mobile/.env\"*)",
+      "Bash(ls \"d:/Repos/thecroatiateam/motora-ia/mobile/app.config\"*)",
+      "Bash(ls \"d:/Repos/thecroatiateam/motora-ia/functions/.env\"*)",
+      "Bash(node -e \"const pkg = require\\('d:/Repos/thecroatiateam/motora-ia/functions/node_modules/firebase-functions/package.json'\\); console.log\\('firebase-functions version:', pkg.version\\); console.log\\('bin:', JSON.stringify\\(pkg.bin || 'none'\\)\\);\")",
+      "Bash(cd d:\\\\\\\\Repos\\\\\\\\thecroatiateam\\\\\\\\motora-ia)",
+      "Bash(ls -lh /d/Repos/thecroatiateam/motora-ia/docs/*.md)",
+      "Bash(python3 -m json.tool)"
+    ]
+  }
+}
