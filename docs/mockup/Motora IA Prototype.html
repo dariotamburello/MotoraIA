@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Motora IA — Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+<style>
+  body { background: #0B0F1A; color: #CBD5E1; font-family: "Inter", sans-serif; }
+  .stage {
+    position: fixed; inset: 0;
+    display: grid; place-items: center;
+    background: radial-gradient(ellipse at top, #1E293B 0%, #0B0F1A 60%);
+    overflow: hidden;
+  }
+  body[data-theme="light"] .stage {
+    background: radial-gradient(ellipse at top, #E2E8F0 0%, #CBD5E1 60%);
+  }
+  .stage-inner {
+    transform-origin: center center;
+  }
+  /* Top-right floating direction label */
+  .direction-badge {
+    position: fixed; top: 16px; left: 16px;
+    background: rgba(15, 23, 42, 0.7);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 999px;
+    padding: 6px 12px;
+    color: #CBD5E1;
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    font-family: "Inter", sans-serif;
+    z-index: 100;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .direction-badge .dot { width: 6px; height: 6px; border-radius: 999px; background: #3B82F6; }
+</style>
+</head>
+<body>
+  <div id="root"></div>
+  <div id="tweaks-root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script src="data.js"></script>
+  <script type="text/babel" src="ios-frame.jsx"></script>
+  <script type="text/babel" src="tweaks-panel.jsx"></script>
+  <script type="text/babel" src="icons.jsx"></script>
+  <script type="text/babel" src="dashboard.jsx"></script>
+  <script type="text/babel" src="screens.jsx"></script>
+
+  <script type="text/babel" data-presets="react">
+    const { useState, useEffect, useRef } = React;
+
+    /*EDITMODE-BEGIN*/
+    const TWEAK_DEFAULTS = {
+      "direction": "wise",
+      "statusKey": "warn",
+      "theme": "dark",
+      "persona": "mariana"
+    };
+    /*EDITMODE-END*/
+
+    const DIRECTIONS = [
+      { id: "wise", label: "Wise Calm", desc: "Minimal · status pill + huge metric" },
+      { id: "ring", label: "Health Ring", desc: "Apple Health · circular meter" },
+      { id: "editorial", label: "Editorial", desc: "Typographic · status as sentence" },
+      { id: "cockpit", label: "Cockpit", desc: "Telemetry-forward · live mini-gauges" },
+    ];
+
+    function App() {
+      const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+      const [tab, setTab] = useState("home");
+      const [stack, setStack] = useState([]);  // modal navigation
+      const [aiOpen, setAiOpen] = useState(false);
+      const [addOpen, setAddOpen] = useState(false);
+
+      // Apply theme on body so CSS variables flip
+      useEffect(() => {
+        document.body.dataset.theme = tweaks.theme;
+      }, [tweaks.theme]);
+
+      const goVehicle = () => setStack(["vehicle"]);
+      const goBack = () => setStack(stack.slice(0, -1));
+
+      const dirInfo = DIRECTIONS.find(d => d.id === tweaks.direction);
+
+      // Stage scaling
+      const stageRef = useRef(null);
+      const innerRef = useRef(null);
+      useEffect(() => {
+        function fit() {
+          if (!innerRef.current) return;
+          const W = window.innerWidth, H = window.innerHeight;
+          const targetW = 430, targetH = 920;
+          const s = Math.min(W / targetW, H / targetH, 1);
+          innerRef.current.style.transform = `scale(${s})`;
+        }
+        fit();
+        window.addEventListener("resize", fit);
+        return () => window.removeEventListener("resize", fit);
+      }, []);
+
+      // Phone screen content
+      let screen = null;
+      if (stack.length > 0 && stack[stack.length - 1] === "vehicle") {
+        screen = <VehicleDetail onBack={goBack} />;
+      } else if (tab === "home") {
+        screen = <Dashboard
+          direction={tweaks.direction}
+          statusKey={tweaks.statusKey}
+          onOpenVehicle={goVehicle}
+          onOpenDiag={() => setTab("obd")}
+        />;
+      } else if (tab === "vehicles") {
+        screen = <GarageScreen onOpen={goVehicle} />;
+      } else if (tab === "obd") {
+        screen = <ObdScreen onAskAI={() => setAiOpen(true)} />;
+      } else if (tab === "profile") {
+        screen = <ProfileScreen
+          direction={tweaks.direction}
+          onChangeDir={(d) => setTweak("direction", d)}
+          statusKey={tweaks.statusKey}
+          onChangeStatus={(s) => setTweak("statusKey", s)}
+          theme={tweaks.theme}
+          onChangeTheme={(t) => setTweak("theme", t)}
+        />;
+      }
+
+      const TabBtn = ({ id, icon: Icn, label }) => (
+        <button className={`tab ${tab === id ? "active" : ""}`} onClick={() => { setTab(id); setStack([]); }}>
+          <Icn size={20} color={tab === id ? "var(--brand)" : "var(--text-muted)"} />
+          <span>{label}</span>
+          <span className="tab-dot" />
+        </button>
+      );
+
+      const phoneInner = (
+        <div className="screen">
+          <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+            {screen}
+          </div>
+          {stack.length === 0 && (
+            <div className="tabbar">
+              <TabBtn id="home" icon={I.Home} label="Inicio" />
+              <TabBtn id="vehicles" icon={I.Car} label="Vehículos" />
+              {/* Center FAB-like add button */}
+              <button onClick={() => setAddOpen(true)} className="tab" style={{ position: "relative" }}>
+                <div style={{
+                  width: 38, height: 38, borderRadius: 12,
+                  background: "var(--brand)",
+                  display: "grid", placeItems: "center",
+                  boxShadow: "0 6px 16px -4px rgba(59, 130, 246, 0.5)",
+                  marginBottom: -2,
+                }}>
+                  <I.Plus size={20} color="white" />
+                </div>
+                <span style={{ marginTop: 4 }}>Agregar</span>
+                <span className="tab-dot" />
+              </button>
+              <TabBtn id="obd" icon={I.Activity} label="Diagnóstico" />
+              <TabBtn id="profile" icon={I.User} label="Perfil" />
+            </div>
+          )}
+          {/* Modals */}
+          <AIDiagnosisSheet open={aiOpen} onClose={() => setAiOpen(false)} />
+          <AddMaintenanceSheet open={addOpen} onClose={() => setAddOpen(false)} onSave={() => setAddOpen(false)} />
+        </div>
+      );
+
+      return (
+        <>
+          <div className="direction-badge">
+            <span className="dot" />
+            <span>{dirInfo.label}</span>
+            <span style={{ color: "var(--text-muted)", fontWeight: 500, marginLeft: 4 }}>· {dirInfo.desc}</span>
+          </div>
+
+          <div className="stage" ref={stageRef}>
+            <div className="stage-inner" ref={innerRef}>
+              <IOSDevice width={390} height={844} dark={tweaks.theme === "dark"}>
+                {phoneInner}
+              </IOSDevice>
+            </div>
+          </div>
+
+          <TweaksPanel title="Tweaks">
+            <TweakSection label="Visual direction">
+              <TweakSelect
+                label="Direction"
+                value={tweaks.direction}
+                onChange={(v) => setTweak("direction", v)}
+                options={DIRECTIONS.map(d => ({ value: d.id, label: d.label }))}
+              />
+            </TweakSection>
+
+            <TweakSection label="Estado del auto">
+              <TweakRadio
+                label="Status"
+                value={tweaks.statusKey}
+                onChange={(v) => setTweak("statusKey", v)}
+                options={[
+                  { value: "ok", label: "OK" },
+                  { value: "warn", label: "Atención" },
+                  { value: "err", label: "Crítico" },
+                ]}
+              />
+            </TweakSection>
+
+            <TweakSection label="Tema">
+              <TweakRadio
+                label="Theme"
+                value={tweaks.theme}
+                onChange={(v) => setTweak("theme", v)}
+                options={[
+                  { value: "dark", label: "Oscuro" },
+                  { value: "light", label: "Claro" },
+                ]}
+              />
+            </TweakSection>
+
+            <TweakSection label="Acciones rápidas">
+              <TweakButton label="Ver Diagnóstico OBD2" onClick={() => { setTab("obd"); setStack([]); }} />
+              <TweakButton label="Abrir IA del Negro" onClick={() => { setAiOpen(true); }} />
+              <TweakButton label="Vehicle Detail" onClick={() => { setStack(["vehicle"]); setTab("home"); }} />
+              <TweakButton label="Add Maintenance" onClick={() => { setAddOpen(true); }} />
+            </TweakSection>
+          </TweaksPanel>
+        </>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
