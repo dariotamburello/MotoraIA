@@ -1,5 +1,25 @@
 {
+  "name": "motora-ia",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.13.1",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "typecheck": "pnpm -r --parallel exec tsc --noEmit",
+    "test": "pnpm -r --parallel run test",
+    "dev:mobile": "pnpm --filter mobile start",
+    "dev:web": "pnpm --filter web dev",
+    "dev:functions": "pnpm --filter functions serve",
+    "generate:feature": "node packages/scripts/bin/generate-feature.mjs"
+  },
   "devDependencies": {
-    "firebase-tools": "^15.11.0"
+    "@biomejs/biome": "^1.9.4",
+    "firebase-tools": "^15.11.0",
+    "typescript": "~5.9.2"
   }
 }

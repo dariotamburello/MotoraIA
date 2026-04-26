@@ -1,17 +1,15 @@
 {
-  "extends": "expo/tsconfig.base",
+  "extends": ["expo/tsconfig.base", "../tsconfig.base.json"],
   "compilerOptions": {
     "strict": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "src/*"
-      ]
+      "@/*": ["src/*"],
+      "@motora/types": ["../packages/types/src/index.ts"],
+      "@motora/types/*": ["../packages/types/src/*"],
+      "@motora/design-tokens": ["../packages/design-tokens/src/index.ts"],
+      "@motora/design-tokens/*": ["../packages/design-tokens/src/*"]
     }
   },
-  "include": [
-    "**/*.ts",
-    "**/*.tsx",
-    ".expo/types/**/*.d.ts"
-  ]
+  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.d.ts"]
 }

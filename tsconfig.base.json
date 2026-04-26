@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022"],
+    "strict": true,
+    "noUncheckedIndexedAccess": false,
+    "noImplicitOverride": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "allowSyntheticDefaultImports": true,
+    "baseUrl": ".",
+    "paths": {
+      "@motora/types": ["packages/types/src/index.ts"],
+      "@motora/types/*": ["packages/types/src/*"],
+      "@motora/design-tokens": ["packages/design-tokens/src/index.ts"],
+      "@motora/design-tokens/*": ["packages/design-tokens/src/*"],
+      "@motora/scripts": ["packages/scripts/src/index.ts"],
+      "@motora/scripts/*": ["packages/scripts/src/*"]
+    }
+  }
+}
