@@ -1,9 +1,11 @@
 import { useAuthStore } from "@/shared/stores/useAuthStore";
+import { colorsDark } from "@motora/design-tokens";
 
 /**
- * Paleta de colores completa de la app.
- * Los colores de Success, Warning y Error son invariables entre roles.
- * El color `primary` cambia según el rol activo para dar contexto visual claro.
+ * Paleta de colores compatibility shim.
+ * Los valores son derivados de @motora/design-tokens (colorsDark) — no duplicar.
+ * Mantenemos el shape legacy (AppColors flat) para no romper login/register/onboarding.
+ * Código nuevo debe usar `useTheme()` de `@/shared/theme/ThemeProvider` directamente.
  */
 export interface AppColors {
   background: string;
@@ -13,7 +15,6 @@ export interface AppColors {
   subtitle: string;
   body: string;
   heading: string;
-  /** Color de acción principal — varía según el rol activo. */
   primary: string;
   success: string;
   warning: string;
@@ -25,49 +26,38 @@ export interface AppTheme {
   colors: AppColors;
 }
 
-// ---------------------------------------------------------------------------
-// Colores base compartidos entre ambos roles.
-// ---------------------------------------------------------------------------
-const BASE_COLORS = {
-  background: "#0F172A",
-  card: "#1E293B",
-  border: "#334155",
-  mutedText: "#64748B",
-  subtitle: "#94A3B8",
-  body: "#CBD5E1",
-  heading: "#F8FAFC",
-  success: "#34D399",
-  warning: "#F59E0B",
-  error: "#EF4444",
-  premium: "#A855F7",
-} as const;
+const BASE_COLORS: Omit<AppColors, "primary"> = {
+  background: colorsDark.background.primary,
+  card: colorsDark.background.secondary,
+  border: colorsDark.border.default,
+  mutedText: colorsDark.text.muted,
+  subtitle: colorsDark.brand.metallic,
+  body: colorsDark.text.body,
+  heading: colorsDark.text.heading,
+  success: colorsDark.status.ok,
+  warning: colorsDark.status.warn,
+  error: colorsDark.status.err,
+  premium: colorsDark.premium.base,
+};
 
-// ---------------------------------------------------------------------------
-// Paleta CLIENT — Primary azul institucional.
-// ---------------------------------------------------------------------------
 export const CLIENT_THEME: AppTheme = {
   colors: {
     ...BASE_COLORS,
-    primary: "#3B82F6",
+    primary: colorsDark.brand.primary,
   },
 };
 
-// ---------------------------------------------------------------------------
-// Paleta BUSINESS — Primary esmeralda para distinguir visualmente el contexto.
-// Se eligió #10B981 (esmeralda) en lugar del violeta premium (#A855F7) para
-// no colisionar con el badge de suscripción PREMIUM que usa ese color.
-// ---------------------------------------------------------------------------
+// Esmeralda BUSINESS — no está en design-tokens (token contextual de rol, no de marca).
+// Se mantiene literal acá hasta que role-themes aterricen como tokens en una futura story.
+const BUSINESS_PRIMARY = "#10B981";
+
 export const BUSINESS_THEME: AppTheme = {
   colors: {
     ...BASE_COLORS,
-    primary: "#10B981",
+    primary: BUSINESS_PRIMARY,
   },
 };
 
-// ---------------------------------------------------------------------------
-// Hook de consumo — devuelve la paleta activa según el rol del usuario.
-// Uso: const { colors } = useAppTheme();
-// ---------------------------------------------------------------------------
 export function useAppTheme(): AppTheme {
   const activeRole = useAuthStore((s) => s.activeRole);
   return activeRole === "BUSINESS" ? BUSINESS_THEME : CLIENT_THEME;
