@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { LiveTelemetryData, FuelType } from "../services/obd/types";
+import type { FuelType, LiveTelemetryData } from "../services/obd/types";
 
 // ---------------------------------------------------------------------------
 // Tipos
@@ -10,11 +10,7 @@ import type { LiveTelemetryData, FuelType } from "../services/obd/types";
  * La vista "connected" muestra telemetría + sección DTC en la misma pantalla.
  * "scanning" es un sub-estado visual dentro de esa misma vista.
  */
-export type DiagnosticStatus =
-  | "disconnected"
-  | "connecting"
-  | "connected"
-  | "scanning";
+export type DiagnosticStatus = "disconnected" | "connecting" | "connected" | "scanning";
 
 /** Estructura serializable que se guarda en el campo `notes` de Firestore. */
 export interface DiagnosticNotes {

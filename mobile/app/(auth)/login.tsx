@@ -1,19 +1,19 @@
+import { signIn } from "@/services/firebase/auth";
+import AuthBackground from "@/shared/components/AuthBackground";
+import { useRouter } from "expo-router";
+import { ArrowLeft, Eye, EyeOff, Lock, Mail } from "lucide-react-native";
 import { useState } from "react";
 import {
-  View,
-  Text,
-  TextInput,
-  StyleSheet,
-  TouchableOpacity,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { useRouter } from "expo-router";
-import { Mail, Lock, Eye, EyeOff, ArrowLeft } from "lucide-react-native";
-import { signIn } from "@/services/firebase/auth";
-import AuthBackground from "@/shared/components/AuthBackground";
 
 // ---------------------------------------------------------------------------
 // LoginScreen — Inicio de sesión con email y contraseña.
@@ -63,10 +63,7 @@ export default function LoginScreen() {
         >
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => router.back()}
-            >
+            <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
               <ArrowLeft size={22} color="#CBD5E1" />
             </TouchableOpacity>
           </View>
@@ -74,9 +71,7 @@ export default function LoginScreen() {
           {/* Title */}
           <View style={styles.titleBlock}>
             <Text style={styles.title}>Bienvenido de vuelta</Text>
-            <Text style={styles.subtitle}>
-              Ingresá para ver el estado de tu vehículo.
-            </Text>
+            <Text style={styles.subtitle}>Ingresá para ver el estado de tu vehículo.</Text>
           </View>
 
           {/* Form */}
@@ -105,9 +100,7 @@ export default function LoginScreen() {
               <View style={styles.labelRow}>
                 <Text style={styles.label}>Contraseña</Text>
                 <TouchableOpacity>
-                  <Text style={styles.forgotLink}>
-                    ¿Olvidaste tu contraseña?
-                  </Text>
+                  <Text style={styles.forgotLink}>¿Olvidaste tu contraseña?</Text>
                 </TouchableOpacity>
               </View>
               <View style={styles.inputWrapper}>
@@ -161,9 +154,7 @@ export default function LoginScreen() {
           {/* Footer */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>¿No tenés cuenta? </Text>
-            <TouchableOpacity
-              onPress={() => router.replace("/(auth)/register")}
-            >
+            <TouchableOpacity onPress={() => router.replace("/(auth)/register")}>
               <Text style={styles.footerLink}>Registrate</Text>
             </TouchableOpacity>
           </View>

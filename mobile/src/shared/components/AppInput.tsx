@@ -1,10 +1,10 @@
 import {
-  View,
+  type StyleProp,
+  StyleSheet,
   Text,
   TextInput,
-  StyleSheet,
   type TextInputProps,
-  type StyleProp,
+  View,
   type ViewStyle,
 } from "react-native";
 

@@ -33,11 +33,7 @@ function clean(raw: string): string {
 function isNoData(raw: string): boolean {
   const c = clean(raw);
   return (
-    c === "" ||
-    c.includes("NODATA") ||
-    c.includes("ERROR") ||
-    c.includes("UNABLE") ||
-    c === "?"
+    c === "" || c.includes("NODATA") || c.includes("ERROR") || c.includes("UNABLE") || c === "?"
   );
 }
 
@@ -55,10 +51,10 @@ export function parseRPM(raw: string): number | null {
   const c = clean(raw);
   const match = c.match(/410C([0-9A-F]{4})/);
   if (!match) return null;
-  const a = parseInt(match[1].slice(0, 2), 16);
-  const b = parseInt(match[1].slice(2, 4), 16);
+  const a = Number.parseInt(match[1].slice(0, 2), 16);
+  const b = Number.parseInt(match[1].slice(2, 4), 16);
   const rpm = (a * 256 + b) / 4;
-  return isNaN(rpm) ? null : Math.round(rpm);
+  return Number.isNaN(rpm) ? null : Math.round(rpm);
 }
 
 /**
@@ -71,8 +67,8 @@ export function parseSpeed(raw: string): number | null {
   const c = clean(raw);
   const match = c.match(/410D([0-9A-F]{2})/);
   if (!match) return null;
-  const speed = parseInt(match[1], 16);
-  return isNaN(speed) ? null : speed;
+  const speed = Number.parseInt(match[1], 16);
+  return Number.isNaN(speed) ? null : speed;
 }
 
 /**
@@ -85,8 +81,8 @@ export function parseCoolantTemp(raw: string): number | null {
   const c = clean(raw);
   const match = c.match(/4105([0-9A-F]{2})/);
   if (!match) return null;
-  const temp = parseInt(match[1], 16) - 40;
-  return isNaN(temp) ? null : temp;
+  const temp = Number.parseInt(match[1], 16) - 40;
+  return Number.isNaN(temp) ? null : temp;
 }
 
 /**
@@ -99,8 +95,8 @@ export function parseBatteryVoltage(raw: string): number | null {
   // Acepta: "12.4V", "12V", "12,4V", "12.40V"
   const match = raw.match(/(\d{1,2}[.,]\d{1,2}|\d{1,2})V/i);
   if (!match) return null;
-  const v = parseFloat(match[1].replace(",", "."));
-  return isNaN(v) ? null : v;
+  const v = Number.parseFloat(match[1].replace(",", "."));
+  return Number.isNaN(v) ? null : v;
 }
 
 /**
@@ -134,15 +130,15 @@ export function parseDTCs(raw: string): string[] {
     if (chunk.length < 4) continue;
     if (chunk === "0000") continue; // padding de relleno
 
-    const firstByte = parseInt(chunk.slice(0, 2), 16);
-    if (isNaN(firstByte)) continue;
+    const firstByte = Number.parseInt(chunk.slice(0, 2), 16);
+    if (Number.isNaN(firstByte)) continue;
 
     // Bits 7-6 del primer byte → categoría
     const categoryIndex = (firstByte >> 6) & 0x03;
     // Bits 5-0 del primer byte + segundo byte → número de 3 dígitos
     const highNibble = firstByte & 0x3f;
-    const lowByte = parseInt(chunk.slice(2, 4), 16);
-    if (isNaN(lowByte)) continue;
+    const lowByte = Number.parseInt(chunk.slice(2, 4), 16);
+    if (Number.isNaN(lowByte)) continue;
 
     const codeNumber = (highNibble << 8) | lowByte;
     const dtc = `${CATEGORY[categoryIndex]}${codeNumber.toString(10).padStart(4, "0")}`;
@@ -166,8 +162,8 @@ export function parseEngineLoad(raw: string): number | null {
   const c = clean(raw);
   const match = c.match(/4104([0-9A-F]{2})/);
   if (!match) return null;
-  const load = (parseInt(match[1], 16) * 100) / 255;
-  return isNaN(load) ? null : Math.round(load * 10) / 10;
+  const load = (Number.parseInt(match[1], 16) * 100) / 255;
+  return Number.isNaN(load) ? null : Math.round(load * 10) / 10;
 }
 
 /**
@@ -179,8 +175,8 @@ export function parseThrottlePosition(raw: string): number | null {
   const c = clean(raw);
   const match = c.match(/4111([0-9A-F]{2})/);
   if (!match) return null;
-  const pos = (parseInt(match[1], 16) * 100) / 255;
-  return isNaN(pos) ? null : Math.round(pos * 10) / 10;
+  const pos = (Number.parseInt(match[1], 16) * 100) / 255;
+  return Number.isNaN(pos) ? null : Math.round(pos * 10) / 10;
 }
 
 /**
@@ -192,8 +188,8 @@ export function parseFuelLevel(raw: string): number | null {
   const c = clean(raw);
   const match = c.match(/412F([0-9A-F]{2})/);
   if (!match) return null;
-  const level = (parseInt(match[1], 16) * 100) / 255;
-  return isNaN(level) ? null : Math.round(level);
+  const level = (Number.parseInt(match[1], 16) * 100) / 255;
+  return Number.isNaN(level) ? null : Math.round(level);
 }
 
 /**
@@ -205,8 +201,8 @@ export function parseIntakeAirTemp(raw: string): number | null {
   const c = clean(raw);
   const match = c.match(/410F([0-9A-F]{2})/);
   if (!match) return null;
-  const temp = parseInt(match[1], 16) - 40;
-  return isNaN(temp) ? null : temp;
+  const temp = Number.parseInt(match[1], 16) - 40;
+  return Number.isNaN(temp) ? null : temp;
 }
 
 /**
@@ -218,10 +214,10 @@ export function parseControlModuleVoltage(raw: string): number | null {
   const c = clean(raw);
   const match = c.match(/4142([0-9A-F]{4})/);
   if (!match) return null;
-  const a = parseInt(match[1].slice(0, 2), 16);
-  const b = parseInt(match[1].slice(2, 4), 16);
+  const a = Number.parseInt(match[1].slice(0, 2), 16);
+  const b = Number.parseInt(match[1].slice(2, 4), 16);
   const v = (a * 256 + b) / 1000;
-  return isNaN(v) ? null : Math.round(v * 100) / 100;
+  return Number.isNaN(v) ? null : Math.round(v * 100) / 100;
 }
 
 // ---------------------------------------------------------------------------
@@ -237,10 +233,10 @@ export function parseMafAirFlow(raw: string): number | null {
   const c = clean(raw);
   const match = c.match(/4110([0-9A-F]{4})/);
   if (!match) return null;
-  const a = parseInt(match[1].slice(0, 2), 16);
-  const b = parseInt(match[1].slice(2, 4), 16);
+  const a = Number.parseInt(match[1].slice(0, 2), 16);
+  const b = Number.parseInt(match[1].slice(2, 4), 16);
   const maf = (a * 256 + b) / 100;
-  return isNaN(maf) ? null : Math.round(maf * 100) / 100;
+  return Number.isNaN(maf) ? null : Math.round(maf * 100) / 100;
 }
 
 /**
@@ -252,8 +248,8 @@ export function parseIntakeManifoldPressure(raw: string): number | null {
   const c = clean(raw);
   const match = c.match(/410B([0-9A-F]{2})/);
   if (!match) return null;
-  const pressure = parseInt(match[1], 16);
-  return isNaN(pressure) ? null : pressure;
+  const pressure = Number.parseInt(match[1], 16);
+  return Number.isNaN(pressure) ? null : pressure;
 }
 
 /**
@@ -265,10 +261,10 @@ export function parseFuelRate(raw: string): number | null {
   const c = clean(raw);
   const match = c.match(/415E([0-9A-F]{4})/);
   if (!match) return null;
-  const a = parseInt(match[1].slice(0, 2), 16);
-  const b = parseInt(match[1].slice(2, 4), 16);
+  const a = Number.parseInt(match[1].slice(0, 2), 16);
+  const b = Number.parseInt(match[1].slice(2, 4), 16);
   const rate = (a * 256 + b) / 20;
-  return isNaN(rate) ? null : Math.round(rate * 100) / 100;
+  return Number.isNaN(rate) ? null : Math.round(rate * 100) / 100;
 }
 
 /**
@@ -280,8 +276,8 @@ export function parseTimingAdvance(raw: string): number | null {
   const c = clean(raw);
   const match = c.match(/410E([0-9A-F]{2})/);
   if (!match) return null;
-  const advance = parseInt(match[1], 16) / 2 - 64;
-  return isNaN(advance) ? null : Math.round(advance * 10) / 10;
+  const advance = Number.parseInt(match[1], 16) / 2 - 64;
+  return Number.isNaN(advance) ? null : Math.round(advance * 10) / 10;
 }
 
 // ---------------------------------------------------------------------------
@@ -297,10 +293,10 @@ export function parseRuntimeSinceStart(raw: string): number | null {
   const c = clean(raw);
   const match = c.match(/411F([0-9A-F]{4})/);
   if (!match) return null;
-  const a = parseInt(match[1].slice(0, 2), 16);
-  const b = parseInt(match[1].slice(2, 4), 16);
+  const a = Number.parseInt(match[1].slice(0, 2), 16);
+  const b = Number.parseInt(match[1].slice(2, 4), 16);
   const runtime = a * 256 + b;
-  return isNaN(runtime) ? null : runtime;
+  return Number.isNaN(runtime) ? null : runtime;
 }
 
 /**
@@ -312,10 +308,10 @@ export function parseDistanceSinceCodesCleared(raw: string): number | null {
   const c = clean(raw);
   const match = c.match(/4131([0-9A-F]{4})/);
   if (!match) return null;
-  const a = parseInt(match[1].slice(0, 2), 16);
-  const b = parseInt(match[1].slice(2, 4), 16);
+  const a = Number.parseInt(match[1].slice(0, 2), 16);
+  const b = Number.parseInt(match[1].slice(2, 4), 16);
   const dist = a * 256 + b;
-  return isNaN(dist) ? null : dist;
+  return Number.isNaN(dist) ? null : dist;
 }
 
 /**
@@ -327,8 +323,8 @@ export function parseAmbientAirTemp(raw: string): number | null {
   const c = clean(raw);
   const match = c.match(/4146([0-9A-F]{2})/);
   if (!match) return null;
-  const temp = parseInt(match[1], 16) - 40;
-  return isNaN(temp) ? null : temp;
+  const temp = Number.parseInt(match[1], 16) - 40;
+  return Number.isNaN(temp) ? null : temp;
 }
 
 /**
@@ -340,8 +336,8 @@ export function parseOilTemp(raw: string): number | null {
   const c = clean(raw);
   const match = c.match(/415C([0-9A-F]{2})/);
   if (!match) return null;
-  const temp = parseInt(match[1], 16) - 40;
-  return isNaN(temp) ? null : temp;
+  const temp = Number.parseInt(match[1], 16) - 40;
+  return Number.isNaN(temp) ? null : temp;
 }
 
 /**
@@ -353,10 +349,10 @@ export function parseDistanceWithMIL(raw: string): number | null {
   const c = clean(raw);
   const match = c.match(/4121([0-9A-F]{4})/);
   if (!match) return null;
-  const a = parseInt(match[1].slice(0, 2), 16);
-  const b = parseInt(match[1].slice(2, 4), 16);
+  const a = Number.parseInt(match[1].slice(0, 2), 16);
+  const b = Number.parseInt(match[1].slice(2, 4), 16);
   const dist = a * 256 + b;
-  return isNaN(dist) ? null : dist;
+  return Number.isNaN(dist) ? null : dist;
 }
 
 /**
@@ -368,7 +364,7 @@ export function parseFuelType(raw: string): string | null {
   const c = clean(raw);
   const match = c.match(/4151([0-9A-F]{2})/);
   if (!match) return null;
-  const code = parseInt(match[1], 16);
+  const code = Number.parseInt(match[1], 16);
   // Mapeo estándar SAE J1979
   const FUEL_TYPES: Record<number, string> = {
     0: "unknown",
@@ -396,12 +392,12 @@ export function parseOdometer(raw: string): number | null {
   const c = clean(raw);
   const match = c.match(/41A6([0-9A-F]{8})/);
   if (!match) return null;
-  const a = parseInt(match[1].slice(0, 2), 16);
-  const b = parseInt(match[1].slice(2, 4), 16);
-  const cByte = parseInt(match[1].slice(4, 6), 16);
-  const d = parseInt(match[1].slice(6, 8), 16);
+  const a = Number.parseInt(match[1].slice(0, 2), 16);
+  const b = Number.parseInt(match[1].slice(2, 4), 16);
+  const cByte = Number.parseInt(match[1].slice(4, 6), 16);
+  const d = Number.parseInt(match[1].slice(6, 8), 16);
   const km = (a * 16777216 + b * 65536 + cByte * 256 + d) / 10;
-  return isNaN(km) ? null : km;
+  return Number.isNaN(km) ? null : km;
 }
 
 // ---------------------------------------------------------------------------
@@ -431,7 +427,7 @@ export function parseSupportedPids(raw: string, rangeStart: number): Set<string>
 
   const hex = match[1];
   // Convertir 8 nibbles hex a 32 bits
-  const value = parseInt(hex, 16);
+  const value = Number.parseInt(hex, 16);
 
   for (let bit = 31; bit >= 0; bit--) {
     if ((value >> bit) & 1) {
@@ -453,10 +449,5 @@ export function parseSupportedPids(raw: string, rangeStart: number): Set<string>
  * Ej: "ELM327 v1.5" o "OBD II to RS232 Interpreter"
  */
 export function parseAdapterInfo(raw: string): string {
-  return raw
-    .replace(/>/g, "")
-    .replace(/\r/g, " ")
-    .replace(/\n/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  return raw.replace(/>/g, "").replace(/\r/g, " ").replace(/\n/g, " ").replace(/\s+/g, " ").trim();
 }

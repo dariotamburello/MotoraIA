@@ -20,9 +20,7 @@ export interface VehiclePatenteResult {
  * TODO: Reemplazar con llamada real a la API de infopatenteauto u otro
  *       servicio de consulta de dominios del RNPA.
  */
-export async function fetchVehicleByPatente(
-  patente: string,
-): Promise<VehiclePatenteResult> {
+export async function fetchVehicleByPatente(patente: string): Promise<VehiclePatenteResult> {
   await new Promise((resolve) => setTimeout(resolve, 2000));
 
   if (patente.trim().length <= 6) {

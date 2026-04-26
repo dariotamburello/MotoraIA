@@ -1,31 +1,27 @@
-import { useState, useMemo } from "react";
+import { auth } from "@/services/firebase/auth";
+import { FUNCTION_NAMES, callFn } from "@/services/firebase/functions";
+import { fetchVehicleByPatente } from "@/services/vehiclePatente";
+import AppInput from "@/shared/components/AppInput";
+import AppSelect from "@/shared/components/AppSelect";
+import AuthBackground from "@/shared/components/AuthBackground";
+import { useToast } from "@/shared/components/ToastProvider";
+import { getBrandOptions, getModelOptions, getYearOptions } from "@/shared/constants/vehiclesData";
+import { useVehicleStore } from "@/shared/stores/useVehicleStore";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "expo-router";
+import { Check, Gauge, Hash, Search } from "lucide-react-native";
+import { useMemo, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { useRouter } from "expo-router";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Hash, Gauge, Check, Search } from "lucide-react-native";
-import { useQueryClient } from "@tanstack/react-query";
-import { auth } from "@/services/firebase/auth";
-import { callFn, FUNCTION_NAMES } from "@/services/firebase/functions";
-import { useVehicleStore } from "@/shared/stores/useVehicleStore";
-import AppInput from "@/shared/components/AppInput";
-import AppSelect from "@/shared/components/AppSelect";
-import {
-  getBrandOptions,
-  getModelOptions,
-  getYearOptions,
-} from "@/shared/constants/vehiclesData";
-import { fetchVehicleByPatente } from "@/services/vehiclePatente";
-import { useToast } from "@/shared/components/ToastProvider";
-import AuthBackground from "@/shared/components/AuthBackground";
 
 // ---------------------------------------------------------------------------
 // AsyncStorage key para marcar que el paso 3 fue completado/saltado.
@@ -60,10 +56,7 @@ export default function OnboardingVehicleScreen() {
 
   // Opciones en cascada — memoizadas para evitar recálculo en cada render.
   const brandOptions = useMemo(() => getBrandOptions(), []);
-  const modelOptions = useMemo(
-    () => (brand ? getModelOptions(brand) : []),
-    [brand],
-  );
+  const modelOptions = useMemo(() => (brand ? getModelOptions(brand) : []), [brand]);
   const yearOptions = useMemo(
     () => (brand && model ? getYearOptions(brand, model) : []),
     [brand, model],
@@ -140,8 +133,8 @@ export default function OnboardingVehicleScreen() {
       setErrorPlate("Ingresá la patente.");
       valid = false;
     } else setErrorPlate(null);
-    const kmNum = parseInt(currentKm, 10);
-    if (currentKm === "" || isNaN(kmNum) || kmNum < 0) {
+    const kmNum = Number.parseInt(currentKm, 10);
+    if (currentKm === "" || Number.isNaN(kmNum) || kmNum < 0) {
       setErrorKm("Ingresá el kilometraje actual (puede ser 0).");
       valid = false;
     } else {
@@ -179,9 +172,9 @@ export default function OnboardingVehicleScreen() {
       >(FUNCTION_NAMES.ADD_VEHICLE)({
         brand: brand!,
         model: model!,
-        year: parseInt(year!, 10),
+        year: Number.parseInt(year!, 10),
         licensePlate: licensePlate.trim().toUpperCase(),
-        currentKm: parseInt(currentKm, 10),
+        currentKm: Number.parseInt(currentKm, 10),
       });
 
       // Actualizar el store inmediatamente (UI optimista).
@@ -201,10 +194,7 @@ export default function OnboardingVehicleScreen() {
       await markDoneAndNavigate();
     } catch (e: unknown) {
       console.error("[OnboardingVehicle] Error al guardar vehículo:", e);
-      showToast(
-        e instanceof Error ? e.message : "Ocurrió un error. Intentá de nuevo.",
-        "error",
-      );
+      showToast(e instanceof Error ? e.message : "Ocurrió un error. Intentá de nuevo.", "error");
     } finally {
       setIsLoading(false);
     }
@@ -237,8 +227,7 @@ export default function OnboardingVehicleScreen() {
           <View style={styles.titleBlock}>
             <Text style={styles.title}>Agregá tu primer auto</Text>
             <Text style={styles.subtitle}>
-              Podés saltear este paso y agregar tu vehículo más tarde desde la
-              app.
+              Podés saltear este paso y agregar tu vehículo más tarde desde la app.
             </Text>
           </View>
 
@@ -264,13 +253,10 @@ export default function OnboardingVehicleScreen() {
               <TouchableOpacity
                 style={[
                   styles.searchButton,
-                  (isFetchingPatente || isLoading) &&
-                    styles.searchButtonDisabled,
+                  (isFetchingPatente || isLoading) && styles.searchButtonDisabled,
                 ]}
                 onPress={handleFetchPatente}
-                disabled={
-                  isFetchingPatente || isLoading || !licensePlate.trim()
-                }
+                disabled={isFetchingPatente || isLoading || !licensePlate.trim()}
                 activeOpacity={0.8}
               >
                 {isFetchingPatente ? (
@@ -299,9 +285,7 @@ export default function OnboardingVehicleScreen() {
             {/* Modelo */}
             <AppSelect
               label="Modelo"
-              placeholder={
-                brand ? "Seleccioná el modelo" : "Primero elegí una marca"
-              }
+              placeholder={brand ? "Seleccioná el modelo" : "Primero elegí una marca"}
               value={model}
               onChange={handleModelChange}
               options={modelOptions}
@@ -313,9 +297,7 @@ export default function OnboardingVehicleScreen() {
             {/* Año */}
             <AppSelect
               label="Año"
-              placeholder={
-                model ? "Seleccioná el año" : "Primero elegí un modelo"
-              }
+              placeholder={model ? "Seleccioná el año" : "Primero elegí un modelo"}
               value={year}
               onChange={(v) => {
                 setYear(v);
@@ -352,9 +334,7 @@ export default function OnboardingVehicleScreen() {
               {isLoading ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
-                <Text style={styles.submitText}>
-                  Agregar vehículo y continuar
-                </Text>
+                <Text style={styles.submitText}>Agregar vehículo y continuar</Text>
               )}
             </TouchableOpacity>
 
@@ -390,15 +370,11 @@ function ProgressStep({
   const borderColor = done || active ? "#3B82F6" : "#334155";
 
   return (
-    <View
-      style={[styles.stepCircle, { backgroundColor: bgColor, borderColor }]}
-    >
+    <View style={[styles.stepCircle, { backgroundColor: bgColor, borderColor }]}>
       {done ? (
         <Check size={14} color="#FFFFFF" strokeWidth={2.5} />
       ) : (
-        <Text style={[styles.stepNumber, active && styles.stepNumberActive]}>
-          {number}
-        </Text>
+        <Text style={[styles.stepNumber, active && styles.stepNumberActive]}>{number}</Text>
       )}
     </View>
   );

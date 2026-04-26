@@ -1,39 +1,32 @@
+import { FUNCTION_NAMES, callFn } from "@/services/firebase/functions";
+import AppDatePicker from "@/shared/components/AppDatePicker";
+import EditFormModal from "@/shared/components/EditFormModal";
+import { useAuthStore } from "@/shared/stores/useAuthStore";
+import { useVehicleStore } from "@/shared/stores/useVehicleStore";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { AlertCircle, ArrowLeft, Gauge, Hash, Pencil, Wand2 } from "lucide-react-native";
 import { useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
   Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  ArrowLeft,
-  AlertCircle,
-  Pencil,
-  Gauge,
-  Hash,
-  Wand2,
-} from "lucide-react-native";
-import { callFn, FUNCTION_NAMES } from "@/services/firebase/functions";
-import { useVehicleStore } from "@/shared/stores/useVehicleStore";
-import { useAuthStore } from "@/shared/stores/useAuthStore";
-import EditFormModal from "@/shared/components/EditFormModal";
-import AppDatePicker from "@/shared/components/AppDatePicker";
-import VehicleHeroCard from "./_components/VehicleHeroCard";
-import TabBar, { type VehicleDetailTab } from "./_components/TabBar";
-import MaintenanceTab from "./_components/MaintenanceTab";
 import DiagnosticsTab from "./_components/DiagnosticsTab";
-import TasksTab from "./_components/TasksTab";
 import DocumentsTab from "./_components/DocumentsTab";
+import MaintenanceTab from "./_components/MaintenanceTab";
+import TabBar, { type VehicleDetailTab } from "./_components/TabBar";
+import TasksTab from "./_components/TasksTab";
+import VehicleHeroCard from "./_components/VehicleHeroCard";
 import {
-  type MaintenanceEntryApiResponse,
-  type VehicleTaskApiResponse,
-  type UserProfileApiResponse,
   type AiTaskSuggestion,
+  type MaintenanceEntryApiResponse,
+  type UserProfileApiResponse,
+  type VehicleTaskApiResponse,
   parseDateSafe,
 } from "./_components/types";
 
@@ -53,7 +46,7 @@ export default function VehicleDetailScreen() {
 
   // ── Tab state ─────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<VehicleDetailTab>(
-    (initialTab as VehicleDetailTab) ?? "maintenance"
+    (initialTab as VehicleDetailTab) ?? "maintenance",
   );
 
   // ── Queries ───────────────────────────────────────────────────────────────
@@ -66,7 +59,7 @@ export default function VehicleDetailScreen() {
     queryKey: ["maintenanceLog", id],
     queryFn: () =>
       callFn<{ vehicleId: string }, MaintenanceEntryApiResponse[]>(
-        FUNCTION_NAMES.GET_MAINTENANCE_LOG
+        FUNCTION_NAMES.GET_MAINTENANCE_LOG,
       )({ vehicleId: id! }),
     enabled: !!user && !!id,
   });
@@ -74,18 +67,15 @@ export default function VehicleDetailScreen() {
   const { data: tasksList, isLoading: tasksLoading } = useQuery({
     queryKey: ["tasks", id],
     queryFn: () =>
-      callFn<{ vehicleId: string }, VehicleTaskApiResponse[]>(
-        FUNCTION_NAMES.GET_TASKS
-      )({ vehicleId: id! }),
+      callFn<{ vehicleId: string }, VehicleTaskApiResponse[]>(FUNCTION_NAMES.GET_TASKS)({
+        vehicleId: id!,
+      }),
     enabled: !!user && !!id,
   });
 
   const { data: userProfile } = useQuery({
     queryKey: ["userProfile"],
-    queryFn: () =>
-      callFn<null, UserProfileApiResponse>(FUNCTION_NAMES.GET_USER_PROFILE)(
-        null
-      ),
+    queryFn: () => callFn<null, UserProfileApiResponse>(FUNCTION_NAMES.GET_USER_PROFILE)(null),
     enabled: !!user,
     staleTime: 5 * 60 * 1000,
   });
@@ -122,25 +112,20 @@ export default function VehicleDetailScreen() {
         licensePlate: string;
         currentKm: number;
       };
-    }) =>
-      callFn<typeof input, { success: boolean }>(
-        FUNCTION_NAMES.UPDATE_VEHICLE
-      )(input),
+    }) => callFn<typeof input, { success: boolean }>(FUNCTION_NAMES.UPDATE_VEHICLE)(input),
     onSuccess: (_, { vehicleId, data }) => {
       updateVehicleInStore(vehicleId, data);
       queryClient.invalidateQueries({ queryKey: ["vehicles"] });
       setIsEditVehicleVisible(false);
     },
     onError: (e: unknown) => {
-      setEditVehicleError(
-        e instanceof Error ? e.message : "Error al actualizar el vehículo."
-      );
+      setEditVehicleError(e instanceof Error ? e.message : "Error al actualizar el vehículo.");
     },
   });
 
   function handleSaveVehicle() {
-    const yearNum = parseInt(editYear, 10);
-    const kmNum = parseInt(editKm, 10);
+    const yearNum = Number.parseInt(editYear, 10);
+    const kmNum = Number.parseInt(editKm, 10);
     if (!editBrand.trim()) {
       setEditVehicleError("Ingresá la marca.");
       return;
@@ -151,7 +136,7 @@ export default function VehicleDetailScreen() {
     }
     if (
       !editYear ||
-      isNaN(yearNum) ||
+      Number.isNaN(yearNum) ||
       yearNum < 1900 ||
       yearNum > new Date().getFullYear() + 1
     ) {
@@ -162,13 +147,17 @@ export default function VehicleDetailScreen() {
       setEditVehicleError("Ingresá la patente.");
       return;
     }
-    if (!editKm || isNaN(kmNum) || kmNum < 0) {
+    if (!editKm || Number.isNaN(kmNum) || kmNum < 0) {
       setEditVehicleError("Ingresá el kilometraje.");
+      return;
+    }
+    if (!vehicle) {
+      setEditVehicleError("Vehículo no encontrado.");
       return;
     }
     setEditVehicleError(null);
     updateVehicleMutation.mutate({
-      vehicleId: vehicle!.id,
+      vehicleId: vehicle.id,
       data: {
         brand: editBrand.trim(),
         model: editModel.trim(),
@@ -180,9 +169,7 @@ export default function VehicleDetailScreen() {
   }
 
   // ── AI suggestion ─────────────────────────────────────────────────────────
-  const [aiSuggestion, setAiSuggestion] = useState<AiTaskSuggestion | null>(
-    null
-  );
+  const [aiSuggestion, setAiSuggestion] = useState<AiTaskSuggestion | null>(null);
   const [aiFormVisible, setAiFormVisible] = useState(false);
   const [aiFormType, setAiFormType] = useState("");
   const [aiFormDesc, setAiFormDesc] = useState("");
@@ -192,9 +179,9 @@ export default function VehicleDetailScreen() {
 
   const suggestTaskMutation = useMutation({
     mutationFn: (vehicleId: string) =>
-      callFn<{ vehicleId: string }, AiTaskSuggestion>(
-        FUNCTION_NAMES.SUGGEST_MAINTENANCE_TASK
-      )({ vehicleId }),
+      callFn<{ vehicleId: string }, AiTaskSuggestion>(FUNCTION_NAMES.SUGGEST_MAINTENANCE_TASK)({
+        vehicleId,
+      }),
     onSuccess: (data) => {
       setAiSuggestion(data);
       setAiFormType(data.suggestedType);
@@ -208,7 +195,7 @@ export default function VehicleDetailScreen() {
     onError: (e: unknown) => {
       Alert.alert(
         "Error del asistente",
-        e instanceof Error ? e.message : "No se pudo obtener la sugerencia."
+        e instanceof Error ? e.message : "No se pudo obtener la sugerencia.",
       );
     },
   });
@@ -222,19 +209,14 @@ export default function VehicleDetailScreen() {
         status: "PENDING";
         scheduledDate?: string;
       };
-    }) =>
-      callFn<typeof input, VehicleTaskApiResponse>(FUNCTION_NAMES.ADD_TASK)(
-        input
-      ),
+    }) => callFn<typeof input, VehicleTaskApiResponse>(FUNCTION_NAMES.ADD_TASK)(input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks", id] });
       setAiFormVisible(false);
       setAiSuggestion(null);
     },
     onError: (e: unknown) => {
-      setAiFormError(
-        e instanceof Error ? e.message : "Error al guardar la tarea."
-      );
+      setAiFormError(e instanceof Error ? e.message : "Error al guardar la tarea.");
     },
   });
 
@@ -265,10 +247,7 @@ export default function VehicleDetailScreen() {
       <View style={styles.centered}>
         <AlertCircle size={36} color="#EF4444" />
         <Text style={styles.notFoundText}>Vehículo no encontrado</Text>
-        <TouchableOpacity
-          style={styles.backTextButton}
-          onPress={() => router.back()}
-        >
+        <TouchableOpacity style={styles.backTextButton} onPress={() => router.back()}>
           <Text style={styles.backTextButtonLabel}>← Volver</Text>
         </TouchableOpacity>
       </View>
@@ -280,10 +259,7 @@ export default function VehicleDetailScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <ArrowLeft size={22} color="#CBD5E1" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Detalles del vehículo</Text>
@@ -296,10 +272,7 @@ export default function VehicleDetailScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Info card del vehículo */}
         <VehicleHeroCard
           brand={vehicle.brand}
@@ -323,11 +296,7 @@ export default function VehicleDetailScreen() {
             onRefetch={refetch}
           />
         )}
-        {activeTab === "diagnostics" && (
-          <DiagnosticsTab
-            vehicleId={id!}
-          />
-        )}
+        {activeTab === "diagnostics" && <DiagnosticsTab vehicleId={id!} />}
         {activeTab === "tasks" && (
           <TasksTab
             tasksList={tasksList}
@@ -338,9 +307,7 @@ export default function VehicleDetailScreen() {
             isSuggestLoading={suggestTaskMutation.isPending}
           />
         )}
-        {activeTab === "documents" && (
-          <DocumentsTab vehicleId={id!} isPremium={isPremium} />
-        )}
+        {activeTab === "documents" && <DocumentsTab vehicleId={id!} isPremium={isPremium} />}
       </ScrollView>
 
       {/* ── Modal: Editar vehículo ───────────────────────────────────────── */}
@@ -444,13 +411,9 @@ export default function VehicleDetailScreen() {
           <View style={modalStyles.aiExplanationBox}>
             <View style={modalStyles.aiExplanationHeader}>
               <Wand2 size={14} color="#A855F7" />
-              <Text style={modalStyles.aiExplanationTitle}>
-                Recomendación del mecánico
-              </Text>
+              <Text style={modalStyles.aiExplanationTitle}>Recomendación del mecánico</Text>
             </View>
-            <Text style={modalStyles.aiExplanationText}>
-              {aiSuggestion.explanation}
-            </Text>
+            <Text style={modalStyles.aiExplanationText}>{aiSuggestion.explanation}</Text>
           </View>
         )}
 
@@ -489,14 +452,10 @@ export default function VehicleDetailScreen() {
         <View style={modalStyles.field}>
           <View style={modalStyles.dateToggleRow}>
             <Text style={modalStyles.label}>
-              Fecha estimada{" "}
-              <Text style={modalStyles.optional}>(opcional)</Text>
+              Fecha estimada <Text style={modalStyles.optional}>(opcional)</Text>
             </Text>
             <TouchableOpacity
-              style={[
-                modalStyles.dateToggle,
-                aiFormHasDate && modalStyles.dateToggleOn,
-              ]}
+              style={[modalStyles.dateToggle, aiFormHasDate && modalStyles.dateToggleOn]}
               onPress={() => setAiFormHasDate((v) => !v)}
               disabled={addTaskFromAiMutation.isPending}
               activeOpacity={0.8}
@@ -512,11 +471,7 @@ export default function VehicleDetailScreen() {
             </TouchableOpacity>
           </View>
           {aiFormHasDate && (
-            <AppDatePicker
-              value={aiFormDate}
-              onChange={setAiFormDate}
-              minimumDate={new Date()}
-            />
+            <AppDatePicker value={aiFormDate} onChange={setAiFormDate} minimumDate={new Date()} />
           )}
         </View>
 

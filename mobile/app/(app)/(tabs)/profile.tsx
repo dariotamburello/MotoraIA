@@ -1,32 +1,32 @@
-import { useState, useEffect } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  ActivityIndicator,
-} from "react-native";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  User,
-  Hash,
-  MapPin,
-  LogOut,
-  Pencil,
-  Shield,
-  ChevronRight,
-  AlertCircle,
-} from "lucide-react-native";
-import { callFn, FUNCTION_NAMES } from "@/services/firebase/functions";
-import { signOut, auth, updateDisplayName } from "@/services/firebase/auth";
-import { useAuthStore } from "@/shared/stores/useAuthStore";
-import { useVehicleStore } from "@/shared/stores/useVehicleStore";
+import { auth, signOut, updateDisplayName } from "@/services/firebase/auth";
+import { FUNCTION_NAMES, callFn } from "@/services/firebase/functions";
+import AppSelect from "@/shared/components/AppSelect";
 import ConfirmationModal from "@/shared/components/ConfirmationModal";
 import EditFormModal from "@/shared/components/EditFormModal";
-import AppSelect from "@/shared/components/AppSelect";
 import { COUNTRIES } from "@/shared/constants/countries";
+import { useAuthStore } from "@/shared/stores/useAuthStore";
+import { useVehicleStore } from "@/shared/stores/useVehicleStore";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  AlertCircle,
+  ChevronRight,
+  Hash,
+  LogOut,
+  MapPin,
+  Pencil,
+  Shield,
+  User,
+} from "lucide-react-native";
+import { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 // ---------------------------------------------------------------------------
 // Tipos
@@ -73,12 +73,14 @@ export default function ProfileScreen() {
   const resetVehicles = useVehicleStore((s) => s.reset);
 
   // ── Fetch del perfil ─────────────────────────────────────────────────────
-  const { data: userDoc, isLoading, isError } = useQuery({
+  const {
+    data: userDoc,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ["userProfile"],
     queryFn: () =>
-      callFn<Record<string, never>, UserProfileApiResponse>(
-        FUNCTION_NAMES.GET_USER_PROFILE
-      )({}),
+      callFn<Record<string, never>, UserProfileApiResponse>(FUNCTION_NAMES.GET_USER_PROFILE)({}),
     enabled: !!user,
   });
 
@@ -119,10 +121,7 @@ export default function ProfileScreen() {
       age?: number;
       gender?: string;
       country?: string;
-    }) =>
-      callFn<typeof data, { success: boolean }>(
-        FUNCTION_NAMES.UPDATE_USER_PROFILE
-      )(data),
+    }) => callFn<typeof data, { success: boolean }>(FUNCTION_NAMES.UPDATE_USER_PROFILE)(data),
     onSuccess: async (_, variables) => {
       // Actualizar displayName en Auth si cambió el nombre.
       if (variables.name && auth.currentUser) {
@@ -132,9 +131,7 @@ export default function ProfileScreen() {
       setIsEditVisible(false);
     },
     onError: (e: unknown) => {
-      setEditError(
-        e instanceof Error ? e.message : "Error al actualizar el perfil."
-      );
+      setEditError(e instanceof Error ? e.message : "Error al actualizar el perfil.");
     },
   });
 
@@ -144,8 +141,8 @@ export default function ProfileScreen() {
       setEditError("Ingresá tu nombre (mínimo 2 caracteres).");
       return;
     }
-    const ageNum = parseInt(editAge, 10);
-    if (!editAge || isNaN(ageNum) || ageNum < 16 || ageNum > 100) {
+    const ageNum = Number.parseInt(editAge, 10);
+    if (!editAge || Number.isNaN(ageNum) || ageNum < 16 || ageNum > 100) {
       setEditError("Ingresá una edad válida (16–100 años).");
       return;
     }
@@ -173,9 +170,7 @@ export default function ProfileScreen() {
   // ── Eliminar cuenta ──────────────────────────────────────────────────────
   const deleteMutation = useMutation({
     mutationFn: () =>
-      callFn<Record<string, never>, { success: boolean }>(
-        FUNCTION_NAMES.DELETE_ACCOUNT
-      )({}),
+      callFn<Record<string, never>, { success: boolean }>(FUNCTION_NAMES.DELETE_ACCOUNT)({}),
     onSuccess: async () => {
       resetVehicles();
       queryClient.clear();
@@ -187,9 +182,7 @@ export default function ProfileScreen() {
       await signOut();
     },
     onError: (e: unknown) => {
-      setDeleteError(
-        e instanceof Error ? e.message : "Error al eliminar la cuenta."
-      );
+      setDeleteError(e instanceof Error ? e.message : "Error al eliminar la cuenta.");
       setIsDeleteStep2Visible(false);
     },
   });
@@ -210,9 +203,7 @@ export default function ProfileScreen() {
         <Text style={styles.errorTitle}>No se pudo cargar el perfil</Text>
         <TouchableOpacity
           style={styles.retryButton}
-          onPress={() =>
-            queryClient.invalidateQueries({ queryKey: ["userProfile"] })
-          }
+          onPress={() => queryClient.invalidateQueries({ queryKey: ["userProfile"] })}
         >
           <Text style={styles.retryText}>Reintentar</Text>
         </TouchableOpacity>
@@ -246,21 +237,14 @@ export default function ProfileScreen() {
           <View
             style={[
               styles.tierBadge,
-              subscriptionTier === "PREMIUM"
-                ? styles.tierBadgePremium
-                : styles.tierBadgeFree,
+              subscriptionTier === "PREMIUM" ? styles.tierBadgePremium : styles.tierBadgeFree,
             ]}
           >
-            <Shield
-              size={12}
-              color={subscriptionTier === "PREMIUM" ? "#F59E0B" : "#64748B"}
-            />
+            <Shield size={12} color={subscriptionTier === "PREMIUM" ? "#F59E0B" : "#64748B"} />
             <Text
               style={[
                 styles.tierText,
-                subscriptionTier === "PREMIUM"
-                  ? styles.tierTextPremium
-                  : styles.tierTextFree,
+                subscriptionTier === "PREMIUM" ? styles.tierTextPremium : styles.tierTextFree,
               ]}
             >
               Plan {subscriptionTier}
@@ -272,9 +256,17 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Información personal</Text>
           <View style={styles.card}>
-            <InfoRow icon={<User size={16} color="#3B82F6" />} label="Nombre" value={profile.name} />
+            <InfoRow
+              icon={<User size={16} color="#3B82F6" />}
+              label="Nombre"
+              value={profile.name}
+            />
             <Divider />
-            <InfoRow icon={<Hash size={16} color="#3B82F6" />} label="Edad" value={`${profile.age} años`} />
+            <InfoRow
+              icon={<Hash size={16} color="#3B82F6" />}
+              label="Edad"
+              value={`${profile.age} años`}
+            />
             <Divider />
             <InfoRow
               icon={<User size={16} color="#3B82F6" />}
@@ -305,11 +297,7 @@ export default function ProfileScreen() {
 
         {/* ── Acciones ──────────────────────────────────────────────────── */}
         <View style={styles.section}>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={openEditModal}
-            activeOpacity={0.8}
-          >
+          <TouchableOpacity style={styles.actionButton} onPress={openEditModal} activeOpacity={0.8}>
             <Pencil size={18} color="#F8FAFC" />
             <Text style={styles.actionButtonText}>Editar perfil</Text>
             <ChevronRight size={16} color="#475569" style={styles.actionChevron} />
@@ -321,23 +309,16 @@ export default function ProfileScreen() {
             activeOpacity={0.8}
           >
             <LogOut size={18} color="#F87171" />
-            <Text style={[styles.actionButtonText, styles.actionTextDanger]}>
-              Cerrar sesión
-            </Text>
+            <Text style={[styles.actionButtonText, styles.actionTextDanger]}>Cerrar sesión</Text>
           </TouchableOpacity>
         </View>
 
         {/* ── Zona peligrosa ────────────────────────────────────────────── */}
         <View style={styles.dangerZone}>
-          <TouchableOpacity
-            onPress={() => setIsDeleteStep1Visible(true)}
-            activeOpacity={0.7}
-          >
+          <TouchableOpacity onPress={() => setIsDeleteStep1Visible(true)} activeOpacity={0.7}>
             <Text style={styles.deleteAccountText}>Eliminar mi cuenta</Text>
           </TouchableOpacity>
-          {deleteError && (
-            <Text style={styles.deleteErrorText}>{deleteError}</Text>
-          )}
+          {deleteError && <Text style={styles.deleteErrorText}>{deleteError}</Text>}
         </View>
       </ScrollView>
 

@@ -42,7 +42,8 @@ export const DTC_CODES: Record<string, string> = {
   P0102: "Sensor de flujo de aire (MAF) — señal baja",
   P0103: "Sensor de flujo de aire (MAF) — señal alta",
   P0105: "Sensor de presión absoluta del múltiple (MAP) — circuito abierto",
-  P0106: "Sensor de presión absoluta del múltiple (MAP) — rango/rendimiento fuera de especificación",
+  P0106:
+    "Sensor de presión absoluta del múltiple (MAP) — rango/rendimiento fuera de especificación",
   P0107: "Sensor de presión absoluta del múltiple (MAP) — señal baja",
   P0108: "Sensor de presión absoluta del múltiple (MAP) — señal alta",
 

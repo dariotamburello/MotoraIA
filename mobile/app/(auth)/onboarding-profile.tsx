@@ -1,31 +1,24 @@
+import { auth, updateDisplayName } from "@/services/firebase/auth";
+import { db, doc, getDoc, serverTimestamp, setDoc, updateDoc } from "@/services/firebase/firestore";
+import AppInput from "@/shared/components/AppInput";
+import AppSelect from "@/shared/components/AppSelect";
+import AuthBackground from "@/shared/components/AuthBackground";
+import { useToast } from "@/shared/components/ToastProvider";
+import { COUNTRIES } from "@/shared/constants/countries";
+import { useAuthStore } from "@/shared/stores/useAuthStore";
+import { useRouter } from "expo-router";
+import { Check, Hash, User } from "lucide-react-native";
 import { useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { useRouter } from "expo-router";
-import { User, Hash, Check } from "lucide-react-native";
-import { auth, updateDisplayName } from "@/services/firebase/auth";
-import {
-  db,
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-  serverTimestamp,
-} from "@/services/firebase/firestore";
-import { useAuthStore } from "@/shared/stores/useAuthStore";
-import AppInput from "@/shared/components/AppInput";
-import AppSelect from "@/shared/components/AppSelect";
-import { COUNTRIES } from "@/shared/constants/countries";
-import { useToast } from "@/shared/components/ToastProvider";
-import AuthBackground from "@/shared/components/AuthBackground";
 
 // ---------------------------------------------------------------------------
 // Género — espejo del enum UserGender del backend.
@@ -69,8 +62,8 @@ export default function OnboardingProfileScreen() {
     } else {
       setErrorName(null);
     }
-    const ageNum = parseInt(age, 10);
-    if (!age || isNaN(ageNum) || ageNum < 16 || ageNum > 100) {
+    const ageNum = Number.parseInt(age, 10);
+    if (!age || Number.isNaN(ageNum) || ageNum < 16 || ageNum > 100) {
       setErrorAge("Ingresá una edad válida (entre 16 y 100 años).");
       valid = false;
     } else {
@@ -108,7 +101,7 @@ export default function OnboardingProfileScreen() {
           profile: {
             name: name.trim(),
             gender: gender as UserGender,
-            age: parseInt(age, 10),
+            age: Number.parseInt(age, 10),
             activeRole: "CLIENT",
             ...(country ? { country } : {}),
           },
@@ -126,7 +119,7 @@ export default function OnboardingProfileScreen() {
         await updateDoc(userRef, {
           "profile.name": name.trim(),
           "profile.gender": gender as UserGender,
-          "profile.age": parseInt(age, 10),
+          "profile.age": Number.parseInt(age, 10),
           ...(country ? { "profile.country": country } : {}),
           updatedAt: serverTimestamp(),
         });
@@ -145,10 +138,7 @@ export default function OnboardingProfileScreen() {
       router.replace("/(auth)/onboarding-vehicle");
     } catch (e: unknown) {
       console.error("[OnboardingProfile] Error al guardar perfil:", e);
-      showToast(
-        e instanceof Error ? e.message : "Ocurrió un error. Intentá de nuevo.",
-        "error",
-      );
+      showToast(e instanceof Error ? e.message : "Ocurrió un error. Intentá de nuevo.", "error");
     } finally {
       setIsLoading(false);
     }
@@ -281,15 +271,11 @@ function ProgressStep({
   const borderColor = done || active ? "#3B82F6" : "#334155";
 
   return (
-    <View
-      style={[styles.stepCircle, { backgroundColor: bgColor, borderColor }]}
-    >
+    <View style={[styles.stepCircle, { backgroundColor: bgColor, borderColor }]}>
       {done ? (
         <Check size={14} color="#FFFFFF" strokeWidth={2.5} />
       ) : (
-        <Text style={[styles.stepNumber, active && styles.stepNumberActive]}>
-          {number}
-        </Text>
+        <Text style={[styles.stepNumber, active && styles.stepNumberActive]}>{number}</Text>
       )}
     </View>
   );

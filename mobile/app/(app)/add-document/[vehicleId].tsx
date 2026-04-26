@@ -1,25 +1,25 @@
-import { useState, useEffect } from "react";
+import { FUNCTION_NAMES, callFn } from "@/services/firebase/functions";
+import AppDatePicker from "@/shared/components/AppDatePicker";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { ArrowLeft, FileText } from "lucide-react-native";
+import { useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  TextInput,
-  StyleSheet,
-  TouchableOpacity,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  StyleSheet,
   Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, FileText } from "lucide-react-native";
-import { callFn, FUNCTION_NAMES } from "@/services/firebase/functions";
-import AppDatePicker from "@/shared/components/AppDatePicker";
 import {
   DOCUMENT_TYPES,
-  type VehicleDocEntryApiResponse,
   type DocumentTypeKey,
+  type VehicleDocEntryApiResponse,
 } from "../vehicle-detail/_components/types";
 
 // ---------------------------------------------------------------------------
@@ -27,7 +27,11 @@ import {
 // ---------------------------------------------------------------------------
 
 export default function AddDocumentScreen() {
-  const { vehicleId, docId, isPremium: isPremiumParam } = useLocalSearchParams<{
+  const {
+    vehicleId,
+    docId,
+    isPremium: isPremiumParam,
+  } = useLocalSearchParams<{
     vehicleId: string;
     docId?: string;
     isPremium?: string;
@@ -43,9 +47,7 @@ export default function AddDocumentScreen() {
     "vehicleDocs",
     vehicleId,
   ]);
-  const existingDoc = docId
-    ? (cachedDocs?.find((d) => d.id === docId) ?? null)
-    : null;
+  const existingDoc = docId ? (cachedDocs?.find((d) => d.id === docId) ?? null) : null;
 
   const [docType, setDocType] = useState<DocumentTypeKey>("DRIVERS_LICENSE");
   const [expirationDate, setExpirationDate] = useState(new Date());
@@ -57,7 +59,7 @@ export default function AddDocumentScreen() {
     if (existingDoc && isEditing) {
       setDocType(existingDoc.type as DocumentTypeKey);
       const d = new Date(existingDoc.expirationDate);
-      setExpirationDate(isNaN(d.getTime()) ? new Date() : d);
+      setExpirationDate(Number.isNaN(d.getTime()) ? new Date() : d);
       setNotificationEnabled(existingDoc.notificationEnabled);
       setNotes(existingDoc.notes ?? "");
     }
@@ -74,10 +76,7 @@ export default function AddDocumentScreen() {
         notificationEnabled: boolean;
         notes?: string;
       };
-    }) =>
-      callFn<typeof input, VehicleDocEntryApiResponse>(
-        FUNCTION_NAMES.ADD_VEHICLE_DOC
-      )(input),
+    }) => callFn<typeof input, VehicleDocEntryApiResponse>(FUNCTION_NAMES.ADD_VEHICLE_DOC)(input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vehicleDocs", vehicleId] });
       router.back();
@@ -97,18 +96,13 @@ export default function AddDocumentScreen() {
         notificationEnabled?: boolean;
         notes?: string;
       };
-    }) =>
-      callFn<typeof input, { success: boolean }>(
-        FUNCTION_NAMES.UPDATE_VEHICLE_DOC
-      )(input),
+    }) => callFn<typeof input, { success: boolean }>(FUNCTION_NAMES.UPDATE_VEHICLE_DOC)(input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vehicleDocs", vehicleId] });
       router.back();
     },
     onError: (e: unknown) => {
-      setError(
-        e instanceof Error ? e.message : "Error al actualizar el documento."
-      );
+      setError(e instanceof Error ? e.message : "Error al actualizar el documento.");
     },
   });
 
@@ -171,10 +165,7 @@ export default function AddDocumentScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <ArrowLeft size={22} color="#CBD5E1" />
           </TouchableOpacity>
         </View>
@@ -184,9 +175,7 @@ export default function AddDocumentScreen() {
           <View style={styles.titleIcon}>
             <FileText size={28} color="#3B82F6" strokeWidth={1.5} />
           </View>
-          <Text style={styles.title}>
-            {isEditing ? "Editar documento" : "Nuevo documento"}
-          </Text>
+          <Text style={styles.title}>{isEditing ? "Editar documento" : "Nuevo documento"}</Text>
           <Text style={styles.subtitle}>
             {isEditing
               ? "Modificá los datos del documento."
@@ -201,21 +190,13 @@ export default function AddDocumentScreen() {
             {DOCUMENT_TYPES.map((dt) => (
               <TouchableOpacity
                 key={dt.value}
-                style={[
-                  styles.chip,
-                  docType === dt.value && styles.chipSelected,
-                ]}
+                style={[styles.chip, docType === dt.value && styles.chipSelected]}
                 onPress={() => setDocType(dt.value)}
                 disabled={isPending}
                 activeOpacity={0.8}
               >
                 <Text style={styles.chipEmoji}>{dt.emoji}</Text>
-                <Text
-                  style={[
-                    styles.chipLabel,
-                    docType === dt.value && styles.chipLabelSelected,
-                  ]}
-                >
+                <Text style={[styles.chipLabel, docType === dt.value && styles.chipLabelSelected]}>
                   {dt.label}
                 </Text>
               </TouchableOpacity>
@@ -226,19 +207,14 @@ export default function AddDocumentScreen() {
         {/* Expiration date */}
         <View style={styles.field}>
           <Text style={styles.label}>Fecha de vencimiento</Text>
-          <AppDatePicker
-            value={expirationDate}
-            onChange={setExpirationDate}
-          />
+          <AppDatePicker value={expirationDate} onChange={setExpirationDate} />
         </View>
 
         {/* Notification toggle */}
         <View style={styles.notifRow}>
           <View style={styles.notifInfo}>
             <Text style={styles.label}>Activar notificación</Text>
-            {!isPremium && (
-              <Text style={styles.premiumHint}>Solo disponible en PREMIUM</Text>
-            )}
+            {!isPremium && <Text style={styles.premiumHint}>Solo disponible en PREMIUM</Text>}
           </View>
           <Switch
             value={notificationEnabled}

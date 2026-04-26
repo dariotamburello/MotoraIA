@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import AppSelect from "./AppSelect";
 
 interface AppDatePickerProps {
@@ -62,14 +62,14 @@ export default function AppDatePicker({
 
   function handleDayChange(v: string) {
     const newDate = new Date(value);
-    newDate.setDate(parseInt(v, 10));
+    newDate.setDate(Number.parseInt(v, 10));
     onChange(newDate);
   }
 
   function handleMonthChange(v: string) {
     const newDate = new Date(value);
-    const newMonth = parseInt(v, 10) - 1;
-    const days = getDaysInMonth(parseInt(v, 10), newDate.getFullYear());
+    const newMonth = Number.parseInt(v, 10) - 1;
+    const days = getDaysInMonth(Number.parseInt(v, 10), newDate.getFullYear());
     if (newDate.getDate() > days) newDate.setDate(days);
     newDate.setMonth(newMonth);
     onChange(newDate);
@@ -77,7 +77,7 @@ export default function AppDatePicker({
 
   function handleYearChange(v: string) {
     const newDate = new Date(value);
-    newDate.setFullYear(parseInt(v, 10));
+    newDate.setFullYear(Number.parseInt(v, 10));
     onChange(newDate);
   }
 

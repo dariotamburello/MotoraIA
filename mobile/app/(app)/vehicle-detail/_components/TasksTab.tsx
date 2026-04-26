@@ -1,29 +1,29 @@
-import { useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-  Modal,
-  ScrollView,
-  Pressable,
-} from "react-native";
-import { useRouter } from "expo-router";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  Plus,
-  Wand2,
-  ClipboardList,
-  CalendarDays,
-  X,
-  CheckCheck,
-  RotateCcw,
-  Wrench,
-} from "lucide-react-native";
-import { callFn, FUNCTION_NAMES } from "@/services/firebase/functions";
+import { FUNCTION_NAMES, callFn } from "@/services/firebase/functions";
 import ConfirmationModal from "@/shared/components/ConfirmationModal";
 import { useToast } from "@/shared/components/ToastProvider";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "expo-router";
+import {
+  CalendarDays,
+  CheckCheck,
+  ClipboardList,
+  Plus,
+  RotateCcw,
+  Wand2,
+  Wrench,
+  X,
+} from "lucide-react-native";
+import { useState } from "react";
+import {
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import TaskCard from "./TaskCard";
 import { type VehicleTaskApiResponse, formatIsoDate } from "./types";
 
@@ -57,20 +57,14 @@ export default function TasksTab({
   const queryClient = useQueryClient();
   const { showToast } = useToast();
 
-  const [deletingTask, setDeletingTask] =
-    useState<VehicleTaskApiResponse | null>(null);
-  const [detailTask, setDetailTask] =
-    useState<VehicleTaskApiResponse | null>(null);
-  const [togglingTask, setTogglingTask] =
-    useState<VehicleTaskApiResponse | null>(null);
-  const [movingToMaintenanceTaskId, setMovingToMaintenanceTaskId] =
-    useState<string | null>(null);
+  const [deletingTask, setDeletingTask] = useState<VehicleTaskApiResponse | null>(null);
+  const [detailTask, setDetailTask] = useState<VehicleTaskApiResponse | null>(null);
+  const [togglingTask, setTogglingTask] = useState<VehicleTaskApiResponse | null>(null);
+  const [movingToMaintenanceTaskId, setMovingToMaintenanceTaskId] = useState<string | null>(null);
 
   const deleteTaskMutation = useMutation({
     mutationFn: (input: { vehicleId: string; taskId: string }) =>
-      callFn<typeof input, { success: boolean }>(FUNCTION_NAMES.DELETE_TASK)(
-        input
-      ),
+      callFn<typeof input, { success: boolean }>(FUNCTION_NAMES.DELETE_TASK)(input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks", vehicleId] });
       setDeletingTask(null);
@@ -86,10 +80,7 @@ export default function TasksTab({
       vehicleId: string;
       taskId: string;
       data: { status: "PENDING" | "COMPLETED" };
-    }) =>
-      callFn<typeof input, { success: boolean }>(FUNCTION_NAMES.UPDATE_TASK)(
-        input
-      ),
+    }) => callFn<typeof input, { success: boolean }>(FUNCTION_NAMES.UPDATE_TASK)(input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks", vehicleId] });
     },
@@ -121,7 +112,7 @@ export default function TasksTab({
         },
       });
       await callFn<{ vehicleId: string; taskId: string }, { success: boolean }>(
-        FUNCTION_NAMES.DELETE_TASK
+        FUNCTION_NAMES.DELETE_TASK,
       )({ vehicleId, taskId: task.id });
     },
     onSuccess: () => {
@@ -214,9 +205,7 @@ export default function TasksTab({
           isOverdue={isTaskOverdue(task)}
           isMoving={movingToMaintenanceTaskId === task.id}
           onPress={() => setDetailTask(task)}
-          onEdit={() =>
-            router.push(`/(app)/add-task/${vehicleId}?taskId=${task.id}`)
-          }
+          onEdit={() => router.push(`/(app)/add-task/${vehicleId}?taskId=${task.id}`)}
           onDelete={() => setDeletingTask(task)}
           onToggleStatus={() => handleToggleStatus(task)}
         />
@@ -229,10 +218,7 @@ export default function TasksTab({
         animationType="fade"
         onRequestClose={() => setDetailTask(null)}
       >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setDetailTask(null)}
-        >
+        <Pressable style={styles.modalOverlay} onPress={() => setDetailTask(null)}>
           <Pressable style={styles.detailCard}>
             <View style={styles.detailHeader}>
               <Text style={styles.detailTitle} numberOfLines={2}>
@@ -246,10 +232,7 @@ export default function TasksTab({
               </TouchableOpacity>
             </View>
 
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              style={styles.detailScroll}
-            >
+            <ScrollView showsVerticalScrollIndicator={false} style={styles.detailScroll}>
               {detailTask && (
                 <View style={styles.detailContent}>
                   {/* Status badge row */}
@@ -270,24 +253,19 @@ export default function TasksTab({
                             : styles.statusPendingText,
                         ]}
                       >
-                        {detailTask.status === "COMPLETED"
-                          ? "Completada"
-                          : "Pendiente"}
+                        {detailTask.status === "COMPLETED" ? "Completada" : "Pendiente"}
                       </Text>
                     </View>
-                    {detailTask.status === "PENDING" &&
-                      isTaskOverdue(detailTask) && (
-                        <View style={styles.overdueBadge}>
-                          <Text style={styles.overdueBadgeText}>Vencida</Text>
-                        </View>
-                      )}
+                    {detailTask.status === "PENDING" && isTaskOverdue(detailTask) && (
+                      <View style={styles.overdueBadge}>
+                        <Text style={styles.overdueBadgeText}>Vencida</Text>
+                      </View>
+                    )}
                   </View>
 
                   <View style={styles.detailRow}>
                     <Text style={styles.detailLabel}>Descripción</Text>
-                    <Text style={styles.detailValue}>
-                      {detailTask.description}
-                    </Text>
+                    <Text style={styles.detailValue}>{detailTask.description}</Text>
                   </View>
 
                   {detailTask.scheduledDate && (
@@ -315,10 +293,7 @@ export default function TasksTab({
         animationType="fade"
         onRequestClose={() => setTogglingTask(null)}
       >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setTogglingTask(null)}
-        >
+        <Pressable style={styles.modalOverlay} onPress={() => setTogglingTask(null)}>
           <Pressable style={styles.toggleCard}>
             <Text style={styles.toggleTitle}>Cambiar estado</Text>
 
@@ -333,9 +308,7 @@ export default function TasksTab({
                 <RotateCcw size={18} color="#64748B" />
               )}
               <Text style={styles.toggleOptionText}>
-                {togglingTask?.status === "PENDING"
-                  ? "Marcar como lista"
-                  : "Marcar como pendiente"}
+                {togglingTask?.status === "PENDING" ? "Marcar como lista" : "Marcar como pendiente"}
               </Text>
             </TouchableOpacity>
 
@@ -356,9 +329,7 @@ export default function TasksTab({
               activeOpacity={0.8}
             >
               <X size={18} color="#64748B" />
-              <Text style={[styles.toggleOptionText, styles.toggleCancelText]}>
-                Cancelar
-              </Text>
+              <Text style={[styles.toggleOptionText, styles.toggleCancelText]}>Cancelar</Text>
             </TouchableOpacity>
           </Pressable>
         </Pressable>

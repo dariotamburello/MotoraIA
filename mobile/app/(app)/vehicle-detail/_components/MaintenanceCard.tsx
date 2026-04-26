@@ -1,10 +1,6 @@
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { CalendarDays, Gauge, Pencil, Trash2 } from "lucide-react-native";
-import {
-  type MaintenanceEntryApiResponse,
-  MAINTENANCE_TYPE_LABELS,
-  formatDate,
-} from "./types";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { MAINTENANCE_TYPE_LABELS, type MaintenanceEntryApiResponse, formatDate } from "./types";
 
 interface Props {
   entry: MaintenanceEntryApiResponse;
@@ -13,20 +9,11 @@ interface Props {
   onDelete: () => void;
 }
 
-export default function MaintenanceCard({
-  entry,
-  onPress,
-  onEdit,
-  onDelete,
-}: Props) {
+export default function MaintenanceCard({ entry, onPress, onEdit, onDelete }: Props) {
   const label = MAINTENANCE_TYPE_LABELS[entry.type] ?? entry.type;
 
   return (
-    <TouchableOpacity
-      style={styles.wrapper}
-      onPress={onPress}
-      activeOpacity={0.75}
-    >
+    <TouchableOpacity style={styles.wrapper} onPress={onPress} activeOpacity={0.75}>
       <View style={styles.leftBar}>
         <View style={styles.dot} />
       </View>
@@ -66,14 +53,10 @@ export default function MaintenanceCard({
           </View>
           <View style={styles.metaItem}>
             <Gauge size={12} color="#64748B" />
-            <Text style={styles.metaText}>
-              {entry.kmAtService.toLocaleString("es-AR")} km
-            </Text>
+            <Text style={styles.metaText}>{entry.kmAtService.toLocaleString("es-AR")} km</Text>
           </View>
           {entry.cost != null && (
-            <Text style={styles.cost}>
-              ${entry.cost.toLocaleString("es-AR")}
-            </Text>
+            <Text style={styles.cost}>${entry.cost.toLocaleString("es-AR")}</Text>
           )}
         </View>
 

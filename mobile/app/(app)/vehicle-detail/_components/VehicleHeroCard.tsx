@@ -1,7 +1,7 @@
-import { View, Text, Image, StyleSheet } from "react-native";
-import { Gauge } from "lucide-react-native";
 import type { VehicleBodyType } from "@/shared/constants/vehiclesData";
 import { getVehicleImage } from "@/shared/utils/vehicleImages";
+import { Gauge } from "lucide-react-native";
+import { Image, StyleSheet, Text, View } from "react-native";
 
 interface Props {
   brand: string;
@@ -47,9 +47,7 @@ export default function VehicleHeroCard({
         </View>
         <View style={styles.kmBadge}>
           <Gauge size={12} color="#3B82F6" />
-          <Text style={styles.kmText}>
-            {currentKm.toLocaleString("es-AR")} km
-          </Text>
+          <Text style={styles.kmText}>{currentKm.toLocaleString("es-AR")} km</Text>
         </View>
       </View>
     </View>

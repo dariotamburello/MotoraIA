@@ -13,9 +13,7 @@ const BODY_TYPE_IMAGES: Record<VehicleBodyType, ImageSourcePropType> = {
 
 const DEFAULT_IMAGE = BODY_TYPE_IMAGES.sedan;
 
-export function getVehicleImage(
-  bodyType?: VehicleBodyType,
-): ImageSourcePropType {
+export function getVehicleImage(bodyType?: VehicleBodyType): ImageSourcePropType {
   if (!bodyType) return DEFAULT_IMAGE;
   return BODY_TYPE_IMAGES[bodyType] ?? DEFAULT_IMAGE;
 }

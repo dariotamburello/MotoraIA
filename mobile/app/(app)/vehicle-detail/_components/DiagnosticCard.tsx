@@ -1,19 +1,19 @@
-import { useMemo } from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import type { DiagnosticNotes } from "@/features/diagnostics/stores/useDiagnosticStore";
 import { useRouter } from "expo-router";
 import {
-  CalendarDays,
-  Gauge,
-  Trash2,
   AlertTriangle,
-  CheckCircle,
-  Zap,
-  Thermometer,
   Battery,
+  CalendarDays,
+  CheckCircle,
   CircleGauge,
   Fuel,
+  Gauge,
+  Thermometer,
+  Trash2,
+  Zap,
 } from "lucide-react-native";
-import type { DiagnosticNotes } from "@/features/diagnostics/stores/useDiagnosticStore";
+import { useMemo } from "react";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { type Odb2DiagnosticApiResponse, formatDate } from "./types";
 
 interface Props {
@@ -39,17 +39,11 @@ export default function DiagnosticCard({ entry, vehicleId, onDelete }: Props) {
   const telemetry = parsed?.telemetry ?? null;
 
   function handlePress() {
-    router.push(
-      `/(app)/diagnostics/detail?vehicleId=${vehicleId}&entryId=${entry.id}`
-    );
+    router.push(`/(app)/diagnostics/detail?vehicleId=${vehicleId}&entryId=${entry.id}`);
   }
 
   return (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={handlePress}
-      activeOpacity={0.75}
-    >
+    <TouchableOpacity style={styles.card} onPress={handlePress} activeOpacity={0.75}>
       {/* Header row */}
       <View style={styles.headerRow}>
         <View style={styles.headerLeft}>
@@ -57,9 +51,7 @@ export default function DiagnosticCard({ entry, vehicleId, onDelete }: Props) {
           <Text style={styles.metaText}>{formatDate(entry.performedAt)}</Text>
           <View style={styles.separator} />
           <Gauge size={12} color="#64748B" />
-          <Text style={styles.metaText}>
-            {entry.kmAtService.toLocaleString("es-AR")} km
-          </Text>
+          <Text style={styles.metaText}>{entry.kmAtService.toLocaleString("es-AR")} km</Text>
         </View>
         <TouchableOpacity
           style={styles.deleteBtn}
@@ -72,9 +64,7 @@ export default function DiagnosticCard({ entry, vehicleId, onDelete }: Props) {
       </View>
 
       {/* DTC section */}
-      {dtcs === null && (
-        <Text style={styles.noDiagText}>Sin escaneo de errores</Text>
-      )}
+      {dtcs === null && <Text style={styles.noDiagText}>Sin escaneo de errores</Text>}
       {dtcs !== null && dtcs.length === 0 && (
         <View style={styles.noDtcRow}>
           <CheckCircle size={13} color="#34D399" />

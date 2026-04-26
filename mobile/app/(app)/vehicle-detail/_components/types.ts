@@ -110,9 +110,7 @@ export interface UserProfileApiResponse {
 // Utilidades de formato
 // ---------------------------------------------------------------------------
 
-export function formatDate(
-  performedAt: MaintenanceEntryApiResponse["performedAt"]
-): string {
+export function formatDate(performedAt: MaintenanceEntryApiResponse["performedAt"]): string {
   if (!performedAt) return "—";
   try {
     return new Date(performedAt.seconds * 1000).toLocaleDateString("es-AR", {
@@ -141,5 +139,5 @@ export function formatIsoDate(iso?: string): string {
 export function parseDateSafe(iso?: string): Date {
   if (!iso) return new Date();
   const d = new Date(iso);
-  return isNaN(d.getTime()) ? new Date() : d;
+  return Number.isNaN(d.getTime()) ? new Date() : d;
 }

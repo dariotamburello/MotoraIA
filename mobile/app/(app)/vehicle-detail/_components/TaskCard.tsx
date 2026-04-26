@@ -1,12 +1,12 @@
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from "react-native";
 import {
+  AlertTriangle,
+  CalendarDays,
   CheckCheck,
   Circle,
   Pencil,
   Trash2,
-  CalendarDays,
-  AlertTriangle,
 } from "lucide-react-native";
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { type VehicleTaskApiResponse, formatIsoDate } from "./types";
 
 interface Props {
@@ -46,17 +46,10 @@ export default function TaskCard({
           hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
           disabled={isMoving}
         >
-          {isDone ? (
-            <CheckCheck size={20} color="#34D399" />
-          ) : (
-            <Circle size={20} color="#64748B" />
-          )}
+          {isDone ? <CheckCheck size={20} color="#34D399" /> : <Circle size={20} color="#64748B" />}
         </TouchableOpacity>
         {isOverdue && (
-          <TouchableOpacity
-            onPress={onPress}
-            hitSlop={{ top: 4, bottom: 4, left: 6, right: 6 }}
-          >
+          <TouchableOpacity onPress={onPress} hitSlop={{ top: 4, bottom: 4, left: 6, right: 6 }}>
             <AlertTriangle size={14} color="#F59E0B" />
           </TouchableOpacity>
         )}
@@ -65,10 +58,7 @@ export default function TaskCard({
       {/* Body */}
       <View style={styles.body}>
         <View style={styles.topRow}>
-          <Text
-            style={[styles.type, isDone && styles.typeDone]}
-            numberOfLines={1}
-          >
+          <Text style={[styles.type, isDone && styles.typeDone]} numberOfLines={1}>
             {task.type}
           </Text>
           {!isDone && (
@@ -93,19 +83,14 @@ export default function TaskCard({
           )}
         </View>
 
-        <Text
-          style={[styles.desc, isDone && styles.descDone]}
-          numberOfLines={2}
-        >
+        <Text style={[styles.desc, isDone && styles.descDone]} numberOfLines={2}>
           {task.description}
         </Text>
 
         {task.scheduledDate && (
           <View style={styles.metaItem}>
             <CalendarDays size={11} color="#64748B" />
-            <Text style={styles.metaText}>
-              {formatIsoDate(task.scheduledDate)}
-            </Text>
+            <Text style={styles.metaText}>{formatIsoDate(task.scheduledDate)}</Text>
           </View>
         )}
       </View>

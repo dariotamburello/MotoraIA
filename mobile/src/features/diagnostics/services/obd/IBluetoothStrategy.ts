@@ -1,4 +1,4 @@
-import type { PermissionResult, PairedDevice } from "./types";
+import type { PairedDevice, PermissionResult } from "./types";
 
 /**
  * Contrato del Strategy Pattern para la capa de transporte Bluetooth.

@@ -1,5 +1,5 @@
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
-import { CalendarDays, Pencil, Trash2, Bell, BellOff } from "lucide-react-native";
+import { Bell, BellOff, CalendarDays, Pencil, Trash2 } from "lucide-react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { DOCUMENT_TYPE_LABELS, type VehicleDocEntryApiResponse } from "./types";
 
 interface Props {
@@ -31,10 +31,14 @@ function getExpiryLabel(days: number): string {
 
 function getDocumentEmoji(type: string): string {
   switch (type) {
-    case "DRIVERS_LICENSE": return "🪪";
-    case "TECHNICAL_INSPECTION": return "🔍";
-    case "INSURANCE_POLICY": return "🛡️";
-    default: return "📄";
+    case "DRIVERS_LICENSE":
+      return "🪪";
+    case "TECHNICAL_INSPECTION":
+      return "🔍";
+    case "INSURANCE_POLICY":
+      return "🛡️";
+    default:
+      return "📄";
   }
 }
 
@@ -89,10 +93,8 @@ export default function DocumentCard({ doc, onEdit, onDelete }: Props) {
       <View style={styles.metaRow}>
         <CalendarDays size={12} color="#64748B" />
         <Text style={styles.metaText}>{formattedDate}</Text>
-        <View style={[styles.expiryBadge, { borderColor: expiryColor + "55" }]}>
-          <Text style={[styles.expiryBadgeText, { color: expiryColor }]}>
-            {expiryLabel}
-          </Text>
+        <View style={[styles.expiryBadge, { borderColor: `${expiryColor}55` }]}>
+          <Text style={[styles.expiryBadgeText, { color: expiryColor }]}>{expiryLabel}</Text>
         </View>
       </View>
 

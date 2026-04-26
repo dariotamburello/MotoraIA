@@ -1,12 +1,6 @@
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-} from "react-native";
 import { useRouter } from "expo-router";
-import { ArrowLeft, Sparkles, CheckCircle, Zap } from "lucide-react-native";
+import { ArrowLeft, CheckCircle, Sparkles, Zap } from "lucide-react-native";
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 const PREMIUM_BENEFITS = [
   "Asistente de mantenimiento con IA",
@@ -31,10 +25,7 @@ export default function SubscriptionPromptScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Icon */}
         <View style={styles.iconWrapper}>
           <Sparkles size={52} color="#A855F7" strokeWidth={1.5} />
@@ -42,8 +33,7 @@ export default function SubscriptionPromptScreen() {
 
         <Text style={styles.title}>Motora Premium</Text>
         <Text style={styles.subtitle}>
-          Desbloqueá el asistente IA y llevá el mantenimiento de tu vehículo al
-          siguiente nivel.
+          Desbloqueá el asistente IA y llevá el mantenimiento de tu vehículo al siguiente nivel.
         </Text>
 
         {/* Benefits list */}

@@ -1,6 +1,6 @@
-import { create } from "zustand";
-import type { User } from "firebase/auth";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import type { User } from "firebase/auth";
+import { create } from "zustand";
 
 /** Roles disponibles — espejo del enum UserRole del backend. */
 export type ActiveRole = "CLIENT" | "BUSINESS";

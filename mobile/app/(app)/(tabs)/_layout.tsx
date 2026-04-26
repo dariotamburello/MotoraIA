@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { Car, Home, Activity, User } from "lucide-react-native";
+import { Activity, Car, Home, User } from "lucide-react-native";
 
 /**
  * Tab navigator anidado dentro del Stack de (app).
@@ -8,7 +8,6 @@ import { Car, Home, Activity, User } from "lucide-react-native";
 export default function TabsLayout() {
   return (
     <Tabs
-      sceneContainerStyle={{ backgroundColor: "#0F172A" }}
       screenOptions={{
         headerShown: false,
         tabBarStyle: {

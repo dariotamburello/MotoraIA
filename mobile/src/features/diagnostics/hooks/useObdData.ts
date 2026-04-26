@@ -11,13 +11,13 @@
  *   4. Polling de telemetría en vivo
  */
 
-import { useState, useCallback, useEffect, useRef } from "react";
-import { Alert, Linking, Platform } from "react-native";
 import { useFocusEffect } from "expo-router";
-import { obd2Service as realObd2Service } from "../services/OBD2Service";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Alert, Linking, Platform } from "react-native";
 import { mockOBD2Service } from "../services/MockOBD2Service";
+import { obd2Service as realObd2Service } from "../services/OBD2Service";
+import type { ConnectStep, PairedDevice, PreflightStatus } from "../services/obd/types";
 import { useDiagnosticStore } from "../stores/useDiagnosticStore";
-import type { ConnectStep, PreflightStatus, PairedDevice } from "../services/obd/types";
 
 const IS_MOCK = process.env.EXPO_PUBLIC_OBD2_MOCK === "true";
 const obd2Service = IS_MOCK ? mockOBD2Service : realObd2Service;
@@ -285,9 +285,7 @@ export function useObdData(): ObdHookReturn {
             "No se pudo negociar el protocolo con el vehículo. Verificá que el motor esté encendido.",
           );
         } else {
-          setConnectionError(
-            "La conexión con el adaptador se interrumpió. Intentá de nuevo.",
-          );
+          setConnectionError("La conexión con el adaptador se interrumpió. Intentá de nuevo.");
         }
       }
     }

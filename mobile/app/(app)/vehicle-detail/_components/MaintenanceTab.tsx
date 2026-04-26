@@ -1,33 +1,22 @@
-import { useState, useMemo } from "react";
+import { FUNCTION_NAMES, callFn } from "@/services/firebase/functions";
+import ConfirmationModal from "@/shared/components/ConfirmationModal";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "expo-router";
+import { AlertCircle, CalendarDays, Gauge, Plus, Wrench, X } from "lucide-react-native";
+import { useMemo, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
   ActivityIndicator,
   Alert,
   Modal,
-  ScrollView,
   Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { useRouter } from "expo-router";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  Plus,
-  Wrench,
-  AlertCircle,
-  CalendarDays,
-  Gauge,
-  X,
-} from "lucide-react-native";
-import { callFn, FUNCTION_NAMES } from "@/services/firebase/functions";
-import ConfirmationModal from "@/shared/components/ConfirmationModal";
 import MaintenanceCard from "./MaintenanceCard";
-import {
-  type MaintenanceEntryApiResponse,
-  MAINTENANCE_TYPE_LABELS,
-  formatDate,
-} from "./types";
+import { MAINTENANCE_TYPE_LABELS, type MaintenanceEntryApiResponse, formatDate } from "./types";
 
 interface Props {
   maintenanceLog: MaintenanceEntryApiResponse[] | undefined;
@@ -49,18 +38,16 @@ export default function MaintenanceTab({
 
   const entries = useMemo(
     () => maintenanceLog?.filter((e) => e.type !== "DIAGNOSTIC") ?? [],
-    [maintenanceLog]
+    [maintenanceLog],
   );
 
-  const [deletingEntry, setDeletingEntry] =
-    useState<MaintenanceEntryApiResponse | null>(null);
-  const [detailEntry, setDetailEntry] =
-    useState<MaintenanceEntryApiResponse | null>(null);
+  const [deletingEntry, setDeletingEntry] = useState<MaintenanceEntryApiResponse | null>(null);
+  const [detailEntry, setDetailEntry] = useState<MaintenanceEntryApiResponse | null>(null);
 
   const deleteMutation = useMutation({
     mutationFn: (input: { vehicleId: string; entryId: string }) =>
       callFn<{ vehicleId: string; entryId: string }, { success: boolean }>(
-        FUNCTION_NAMES.DELETE_MAINTENANCE_ENTRY
+        FUNCTION_NAMES.DELETE_MAINTENANCE_ENTRY,
       )(input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["maintenanceLog", vehicleId] });
@@ -111,11 +98,7 @@ export default function MaintenanceTab({
           key={entry.id}
           entry={entry}
           onPress={() => setDetailEntry(entry)}
-          onEdit={() =>
-            router.push(
-              `/(app)/add-maintenance/${vehicleId}?entryId=${entry.id}`
-            )
-          }
+          onEdit={() => router.push(`/(app)/add-maintenance/${vehicleId}?entryId=${entry.id}`)}
           onDelete={() => setDeletingEntry(entry)}
         />
       ))}
@@ -127,17 +110,11 @@ export default function MaintenanceTab({
         animationType="fade"
         onRequestClose={() => setDetailEntry(null)}
       >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setDetailEntry(null)}
-        >
+        <Pressable style={styles.modalOverlay} onPress={() => setDetailEntry(null)}>
           <Pressable style={styles.detailCard}>
             <View style={styles.detailHeader}>
               <Text style={styles.detailTitle}>
-                {detailEntry
-                  ? (MAINTENANCE_TYPE_LABELS[detailEntry.type] ??
-                    detailEntry.type)
-                  : ""}
+                {detailEntry ? (MAINTENANCE_TYPE_LABELS[detailEntry.type] ?? detailEntry.type) : ""}
               </Text>
               <TouchableOpacity
                 onPress={() => setDetailEntry(null)}
@@ -147,10 +124,7 @@ export default function MaintenanceTab({
               </TouchableOpacity>
             </View>
 
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              style={styles.detailScroll}
-            >
+            <ScrollView showsVerticalScrollIndicator={false} style={styles.detailScroll}>
               {detailEntry && (
                 <View style={styles.detailContent}>
                   <DetailRow label="Descripción" value={detailEntry.description} />
@@ -188,9 +162,7 @@ export default function MaintenanceTab({
         visible={!!deletingEntry}
         title="Eliminar registro"
         message={`¿Eliminás el registro "${
-          deletingEntry
-            ? (MAINTENANCE_TYPE_LABELS[deletingEntry.type] ?? deletingEntry.type)
-            : ""
+          deletingEntry ? (MAINTENANCE_TYPE_LABELS[deletingEntry.type] ?? deletingEntry.type) : ""
         }"? Esta acción no se puede deshacer.`}
         confirmLabel="Eliminar"
         isDestructive
@@ -235,8 +207,7 @@ function EmptyMaintenance() {
       <Wrench size={32} color="#334155" />
       <Text style={styles.emptyTitle}>Sin historial aún</Text>
       <Text style={styles.emptySub}>
-        Registrá cambios de aceite, revisiones y reparaciones para llevar un
-        historial completo.
+        Registrá cambios de aceite, revisiones y reparaciones para llevar un historial completo.
       </Text>
     </View>
   );

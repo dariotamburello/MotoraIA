@@ -1,20 +1,7 @@
-import {
-  createContext,
-  useContext,
-  useState,
-  useRef,
-  useCallback,
-  useEffect,
-} from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  Animated,
-  TouchableOpacity,
-} from "react-native";
+import { AlertCircle, CheckCircle, X } from "lucide-react-native";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { Animated, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { X, CheckCircle, AlertCircle } from "lucide-react-native";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -112,10 +99,7 @@ function Toast({ toast, onDismiss }: ToastItemProps) {
       >
         {toast.message}
       </Text>
-      <TouchableOpacity
-        onPress={dismiss}
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-      >
+      <TouchableOpacity onPress={dismiss} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
         <X size={15} color={isSuccess ? "#34D399" : "#EF4444"} strokeWidth={2.5} />
       </TouchableOpacity>
     </Animated.View>
@@ -144,10 +128,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      <View
-        style={[styles.container, { top: insets.top + 8 }]}
-        pointerEvents="box-none"
-      >
+      <View style={[styles.container, { top: insets.top + 8 }]} pointerEvents="box-none">
         {toasts.map((toast) => (
           <Toast key={toast.id} toast={toast} onDismiss={dismissToast} />
         ))}

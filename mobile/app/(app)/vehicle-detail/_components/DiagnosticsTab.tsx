@@ -1,20 +1,13 @@
-import { useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Alert,
-  ActivityIndicator,
-} from "react-native";
-import { useRouter } from "expo-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Activity } from "lucide-react-native";
-import { callFn, FUNCTION_NAMES } from "@/services/firebase/functions";
-import { useAuthStore } from "@/shared/stores/useAuthStore";
+import { FUNCTION_NAMES, callFn } from "@/services/firebase/functions";
 import ConfirmationModal from "@/shared/components/ConfirmationModal";
+import { useAuthStore } from "@/shared/stores/useAuthStore";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "expo-router";
+import { Activity, Plus } from "lucide-react-native";
+import { useState } from "react";
+import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import DiagnosticCard from "./DiagnosticCard";
-import { type Odb2DiagnosticApiResponse } from "./types";
+import type { Odb2DiagnosticApiResponse } from "./types";
 
 interface Props {
   vehicleId: string;
@@ -29,18 +22,17 @@ export default function DiagnosticsTab({ vehicleId }: Props) {
     queryKey: ["odb2Diagnostics", vehicleId],
     queryFn: () =>
       callFn<{ vehicleId: string }, Odb2DiagnosticApiResponse[]>(
-        FUNCTION_NAMES.GET_ODB2_DIAGNOSTICS
+        FUNCTION_NAMES.GET_ODB2_DIAGNOSTICS,
       )({ vehicleId }),
     enabled: !!user && !!vehicleId,
   });
 
-  const [deletingEntry, setDeletingEntry] =
-    useState<Odb2DiagnosticApiResponse | null>(null);
+  const [deletingEntry, setDeletingEntry] = useState<Odb2DiagnosticApiResponse | null>(null);
 
   const deleteMutation = useMutation({
     mutationFn: (input: { vehicleId: string; entryId: string }) =>
       callFn<{ vehicleId: string; entryId: string }, { success: boolean }>(
-        FUNCTION_NAMES.DELETE_ODB2_DIAGNOSTIC
+        FUNCTION_NAMES.DELETE_ODB2_DIAGNOSTIC,
       )(input),
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -50,10 +42,7 @@ export default function DiagnosticsTab({ vehicleId }: Props) {
     },
     onError: () => {
       setDeletingEntry(null);
-      Alert.alert(
-        "Error",
-        "No se pudo eliminar el diagnóstico. Intentá de nuevo."
-      );
+      Alert.alert("Error", "No se pudo eliminar el diagnóstico. Intentá de nuevo.");
     },
   });
 

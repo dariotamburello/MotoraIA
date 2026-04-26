@@ -42,13 +42,10 @@ const initialState = {
 export const useVehicleStore = create<VehicleState>((set) => ({
   ...initialState,
   setVehicles: (vehicles) => set({ vehicles }),
-  addVehicle: (vehicle) =>
-    set((state) => ({ vehicles: [...state.vehicles, vehicle] })),
+  addVehicle: (vehicle) => set((state) => ({ vehicles: [...state.vehicles, vehicle] })),
   updateVehicle: (id, patch) =>
     set((state) => ({
-      vehicles: state.vehicles.map((v) =>
-        v.id === id ? { ...v, ...patch } : v
-      ),
+      vehicles: state.vehicles.map((v) => (v.id === id ? { ...v, ...patch } : v)),
       // Si el vehículo seleccionado fue modificado, actualizarlo también.
       selectedVehicle:
         state.selectedVehicle?.id === id
@@ -58,8 +55,7 @@ export const useVehicleStore = create<VehicleState>((set) => ({
   removeVehicle: (id) =>
     set((state) => ({
       vehicles: state.vehicles.filter((v) => v.id !== id),
-      selectedVehicle:
-        state.selectedVehicle?.id === id ? null : state.selectedVehicle,
+      selectedVehicle: state.selectedVehicle?.id === id ? null : state.selectedVehicle,
     })),
   selectVehicle: (selectedVehicle) => set({ selectedVehicle }),
   setLoading: (isLoading) => set({ isLoading }),

@@ -12,29 +12,29 @@
  *  - Si no hay TX → el polling no arrancó o la cola está bloqueada
  */
 
-import { memo, useEffect, useRef, useState, useCallback } from "react";
+import { Copy, Trash2, X } from "lucide-react-native";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import {
-  Modal,
-  View,
-  Text,
   FlatList,
-  TouchableOpacity,
-  StyleSheet,
-  Share,
-  Platform,
-  useWindowDimensions,
   type ListRenderItemInfo,
-  type ViewStyle,
+  Modal,
+  Platform,
+  Share,
+  StyleSheet,
+  Text,
   type TextStyle,
+  TouchableOpacity,
+  View,
+  type ViewStyle,
+  useWindowDimensions,
 } from "react-native";
-import { X, Copy, Trash2 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
-  getObdLogs,
-  clearObdLogs,
-  subscribeObdLogs,
-  type ObdLogEntry,
   type LogLevel,
+  type ObdLogEntry,
+  clearObdLogs,
+  getObdLogs,
+  subscribeObdLogs,
 } from "../services/obd/obd2Logger";
 
 // ---------------------------------------------------------------------------
@@ -101,9 +101,7 @@ const LogRow = memo(function LogRow({ entry }: { entry: ObdLogEntry }) {
   return (
     <View style={ROW_STYLES[entry.level]}>
       <Text style={styles.rowTime}>{formatTime(entry.ts)}</Text>
-      <Text style={LEVEL_TEXT_STYLES[entry.level]}>
-        {entry.level.padEnd(5)}
-      </Text>
+      <Text style={LEVEL_TEXT_STYLES[entry.level]}>{entry.level.padEnd(5)}</Text>
       <Text style={styles.rowMsg} selectable>
         {entry.msg}
       </Text>
@@ -112,11 +110,7 @@ const LogRow = memo(function LogRow({ entry }: { entry: ObdLogEntry }) {
 });
 
 const EmptyList = memo(function EmptyList() {
-  return (
-    <Text style={styles.empty}>
-      Sin logs. Conectá el adaptador OBD2 para empezar.
-    </Text>
-  );
+  return <Text style={styles.empty}>Sin logs. Conectá el adaptador OBD2 para empezar.</Text>;
 });
 
 // ---------------------------------------------------------------------------
@@ -211,10 +205,7 @@ export default function OBD2DebugModal({ visible, onClose }: Props) {
     [],
   );
 
-  const keyExtractor = useCallback(
-    (item: ObdLogEntry) => String(item.id),
-    [],
-  );
+  const keyExtractor = useCallback((item: ObdLogEntry) => String(item.id), []);
 
   return (
     <Modal
@@ -241,25 +232,13 @@ export default function OBD2DebugModal({ visible, onClose }: Props) {
               <Text style={styles.title}>OBD2 Debug Log</Text>
             </View>
             <View style={styles.headerActions}>
-              <TouchableOpacity
-                style={styles.iconBtn}
-                onPress={handleClear}
-                activeOpacity={0.75}
-              >
+              <TouchableOpacity style={styles.iconBtn} onPress={handleClear} activeOpacity={0.75}>
                 <Trash2 size={15} color="#F87171" />
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.iconBtn}
-                onPress={handleShare}
-                activeOpacity={0.75}
-              >
+              <TouchableOpacity style={styles.iconBtn} onPress={handleShare} activeOpacity={0.75}>
                 <Copy size={15} color="#94A3B8" />
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.iconBtn}
-                onPress={onClose}
-                activeOpacity={0.75}
-              >
+              <TouchableOpacity style={styles.iconBtn} onPress={onClose} activeOpacity={0.75}>
                 <X size={15} color="#94A3B8" />
               </TouchableOpacity>
             </View>
@@ -269,15 +248,8 @@ export default function OBD2DebugModal({ visible, onClose }: Props) {
           <View style={styles.legend}>
             {(Object.keys(LEVEL_COLOR) as LogLevel[]).map((lvl) => (
               <View key={lvl} style={styles.legendItem}>
-                <View
-                  style={[
-                    styles.legendDot,
-                    { backgroundColor: LEVEL_COLOR[lvl] },
-                  ]}
-                />
-                <Text style={[styles.legendText, { color: LEVEL_COLOR[lvl] }]}>
-                  {lvl}
-                </Text>
+                <View style={[styles.legendDot, { backgroundColor: LEVEL_COLOR[lvl] }]} />
+                <Text style={[styles.legendText, { color: LEVEL_COLOR[lvl] }]}>{lvl}</Text>
               </View>
             ))}
           </View>
@@ -302,9 +274,7 @@ export default function OBD2DebugModal({ visible, onClose }: Props) {
           {/* Footer */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>{logs.length} entradas</Text>
-            <Text style={styles.footerHint}>
-              TX=enviado RX=recibido PARSE=parseado
-            </Text>
+            <Text style={styles.footerHint}>TX=enviado RX=recibido PARSE=parseado</Text>
           </View>
         </View>
       </View>

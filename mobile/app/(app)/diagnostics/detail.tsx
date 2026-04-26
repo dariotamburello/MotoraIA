@@ -1,40 +1,40 @@
-import { useState, useEffect } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  ActivityIndicator,
-  TextInput,
-} from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { useQueryClient } from "@tanstack/react-query";
-import {
-  ArrowLeft,
-  Activity,
-  Gauge,
-  Thermometer,
-  Zap,
-  AlertTriangle,
-  CheckCircle,
-  CalendarDays,
-  ScanLine,
-  Brain,
-  Battery,
-  Fuel,
-  CircleGauge,
-  Wind,
-  Timer,
-  Route,
-  Cpu,
-  TrendingUp,
-  Droplets,
-} from "lucide-react-native";
-import { describeDTC } from "@/shared/constants/dtcCodes";
 import type { DiagnosticNotes } from "@/features/diagnostics/stores/useDiagnosticStore";
-import { callFn, FUNCTION_NAMES } from "@/services/firebase/functions";
+import { FUNCTION_NAMES, callFn } from "@/services/firebase/functions";
+import { describeDTC } from "@/shared/constants/dtcCodes";
 import { useAuthStore } from "@/shared/stores/useAuthStore";
+import { useQueryClient } from "@tanstack/react-query";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import {
+  Activity,
+  AlertTriangle,
+  ArrowLeft,
+  Battery,
+  Brain,
+  CalendarDays,
+  CheckCircle,
+  CircleGauge,
+  Cpu,
+  Droplets,
+  Fuel,
+  Gauge,
+  Route,
+  ScanLine,
+  Thermometer,
+  Timer,
+  TrendingUp,
+  Wind,
+  Zap,
+} from "lucide-react-native";
+import { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 // ---------------------------------------------------------------------------
 // Tipos
@@ -94,9 +94,7 @@ export default function DiagnosticDetailScreen() {
 
   useEffect(() => {
     if (!user) return;
-    callFn<Record<string, never>, UserProfileApiResponse>(
-      FUNCTION_NAMES.GET_USER_PROFILE,
-    )({})
+    callFn<Record<string, never>, UserProfileApiResponse>(FUNCTION_NAMES.GET_USER_PROFILE)({})
       .then((doc) => setSubscriptionTier(doc.subscriptionTier))
       .catch(() => {});
   }, [user]);
@@ -163,7 +161,10 @@ export default function DiagnosticDetailScreen() {
         {/* Telemetría grabada */}
         {telemetry !== null && (
           <>
-            <SectionHeader icon={<Activity size={14} color="#64748B" />} title="Telemetría registrada" />
+            <SectionHeader
+              icon={<Activity size={14} color="#64748B" />}
+              title="Telemetría registrada"
+            />
             <View style={styles.telemetryGrid}>
               {telemetry.rpm != null && (
                 <TelemetryCard
@@ -323,7 +324,10 @@ export default function DiagnosticDetailScreen() {
         )}
 
         {/* Errores DTC */}
-        <SectionHeader icon={<ScanLine size={14} color="#64748B" />} title="Errores detectados (DTC)" />
+        <SectionHeader
+          icon={<ScanLine size={14} color="#64748B" />}
+          title="Errores detectados (DTC)"
+        />
 
         {dtcs === null && (
           <View style={styles.infoBox}>
@@ -348,7 +352,8 @@ export default function DiagnosticDetailScreen() {
             <View style={styles.errorSummaryRow}>
               <AlertTriangle size={15} color="#F59E0B" />
               <Text style={styles.errorSummaryText}>
-                {dtcs.length} código{dtcs.length > 1 ? "s" : ""} encontrado{dtcs.length > 1 ? "s" : ""}
+                {dtcs.length} código{dtcs.length > 1 ? "s" : ""} encontrado
+                {dtcs.length > 1 ? "s" : ""}
               </Text>
             </View>
             {dtcs.map((code) => (
@@ -363,10 +368,7 @@ export default function DiagnosticDetailScreen() {
         )}
 
         {/* Análisis con IA */}
-        <SectionHeader
-          icon={<Brain size={14} color="#64748B" />}
-          title="Análisis con IA"
-        />
+        <SectionHeader icon={<Brain size={14} color="#64748B" />} title="Análisis con IA" />
 
         {entry.iaTranslation ? (
           <View style={styles.iaBox}>
@@ -432,9 +434,7 @@ function TelemetryCard({
 }) {
   return (
     <View style={[styles.telemetryCard, { borderColor: `${color}30` }]}>
-      <View style={[styles.telemetryIconWrap, { backgroundColor: `${color}18` }]}>
-        {icon}
-      </View>
+      <View style={[styles.telemetryIconWrap, { backgroundColor: `${color}18` }]}>{icon}</View>
       <Text style={styles.telemetryLabel}>{label}</Text>
       <Text style={[styles.telemetryValue, { color }]}>{value}</Text>
       <Text style={styles.telemetryUnit}>{unit}</Text>

@@ -1,6 +1,6 @@
-import { StyleSheet, ImageBackground, View } from "react-native";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
+import { ImageBackground, StyleSheet, View } from "react-native";
 
 /**
  * Shared blurred background for auth screens (login, register, onboarding).

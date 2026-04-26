@@ -1,12 +1,5 @@
-import {
-  Modal,
-  View,
-  Text,
-  TouchableOpacity,
-  ActivityIndicator,
-  StyleSheet,
-} from "react-native";
 import { AlertTriangle } from "lucide-react-native";
+import { ActivityIndicator, Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 interface ConfirmationModalProps {
   visible: boolean;

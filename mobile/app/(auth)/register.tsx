@@ -1,19 +1,19 @@
+import { signUp } from "@/services/firebase/auth";
+import AuthBackground from "@/shared/components/AuthBackground";
+import { useRouter } from "expo-router";
+import { ArrowLeft, Eye, EyeOff, Lock, Mail } from "lucide-react-native";
 import { useState } from "react";
 import {
-  View,
-  Text,
-  TextInput,
-  StyleSheet,
-  TouchableOpacity,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { useRouter } from "expo-router";
-import { Mail, Lock, Eye, EyeOff, ArrowLeft } from "lucide-react-native";
-import { signUp } from "@/services/firebase/auth";
-import AuthBackground from "@/shared/components/AuthBackground";
 
 // ---------------------------------------------------------------------------
 // RegisterScreen — Paso 1 del onboarding: email + contraseña.
@@ -67,10 +67,7 @@ export default function RegisterScreen() {
         >
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => router.back()}
-            >
+            <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
               <ArrowLeft size={22} color="#CBD5E1" />
             </TouchableOpacity>
           </View>
@@ -78,9 +75,7 @@ export default function RegisterScreen() {
           {/* Title */}
           <View style={styles.titleBlock}>
             <Text style={styles.title}>Crear cuenta</Text>
-            <Text style={styles.subtitle}>
-              Empezá a llevar el historial de tu auto.
-            </Text>
+            <Text style={styles.subtitle}>Empezá a llevar el historial de tu auto.</Text>
           </View>
 
           {/* Form */}
@@ -164,8 +159,7 @@ export default function RegisterScreen() {
           </View>
 
           <Text style={styles.terms}>
-            Al continuar aceptás los Términos de Uso y la Política de
-            Privacidad.
+            Al continuar aceptás los Términos de Uso y la Política de Privacidad.
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>

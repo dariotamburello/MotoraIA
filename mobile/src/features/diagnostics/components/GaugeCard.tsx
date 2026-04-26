@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { View, Text, StyleSheet, Animated } from "react-native";
+import { Animated, StyleSheet, Text, View } from "react-native";
 
 // ---------------------------------------------------------------------------
 // GaugeCard — Tarjeta compacta con barra de progreso animada.

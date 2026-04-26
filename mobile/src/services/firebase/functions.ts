@@ -11,10 +11,7 @@ import { functions } from "./config";
  */
 export function callFn<TInput, TOutput>(name: string) {
   return (data: TInput): Promise<TOutput> =>
-    httpsCallable<TInput, TOutput>(
-      functions,
-      name
-    )(data).then((response) => response.data);
+    httpsCallable<TInput, TOutput>(functions, name)(data).then((response) => response.data);
 }
 
 /**

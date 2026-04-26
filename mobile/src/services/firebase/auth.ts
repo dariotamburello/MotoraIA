@@ -1,10 +1,10 @@
 import {
+  type User,
   createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
   signOut as firebaseSignOut,
   sendPasswordResetEmail,
+  signInWithEmailAndPassword,
   updateProfile,
-  type User,
 } from "firebase/auth";
 import { auth } from "./config";
 
@@ -20,8 +20,7 @@ export const signIn = (email: string, password: string) =>
 export const signOut = () => firebaseSignOut(auth);
 
 /** Envía un email de recuperación de contraseña. */
-export const resetPassword = (email: string) =>
-  sendPasswordResetEmail(auth, email);
+export const resetPassword = (email: string) => sendPasswordResetEmail(auth, email);
 
 /** Actualiza el displayName del usuario en Auth (no en Firestore). */
 export const updateDisplayName = (user: User, displayName: string) =>

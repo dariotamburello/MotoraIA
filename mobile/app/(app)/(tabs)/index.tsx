@@ -1,16 +1,9 @@
-import { useMemo } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  ActivityIndicator,
-  Platform,
-  StatusBar,
-} from "react-native";
-import { useRouter } from "expo-router";
+import type { DiagnosticNotes } from "@/features/diagnostics/stores/useDiagnosticStore";
+import { FUNCTION_NAMES, callFn } from "@/services/firebase/functions";
+import { useAuthStore } from "@/shared/stores/useAuthStore";
+import { useVehicleStore } from "@/shared/stores/useVehicleStore";
 import { useQueries } from "@tanstack/react-query";
+import { useRouter } from "expo-router";
 import {
   Activity,
   AlertTriangle,
@@ -20,10 +13,17 @@ import {
   ChevronRight,
   ScanLine,
 } from "lucide-react-native";
-import { useAuthStore } from "@/shared/stores/useAuthStore";
-import { useVehicleStore } from "@/shared/stores/useVehicleStore";
-import { callFn, FUNCTION_NAMES } from "@/services/firebase/functions";
-import type { DiagnosticNotes } from "@/features/diagnostics/stores/useDiagnosticStore";
+import { useMemo } from "react";
+import {
+  ActivityIndicator,
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 // ---------------------------------------------------------------------------
 // Tipos locales
@@ -83,9 +83,9 @@ export default function HomeScreen() {
     queries: vehicles.map((v) => ({
       queryKey: ["maintenanceLog", v.id] as const,
       queryFn: () =>
-        callFn<{ vehicleId: string }, MaintenanceEntry[]>(
-          FUNCTION_NAMES.GET_MAINTENANCE_LOG,
-        )({ vehicleId: v.id }),
+        callFn<{ vehicleId: string }, MaintenanceEntry[]>(FUNCTION_NAMES.GET_MAINTENANCE_LOG)({
+          vehicleId: v.id,
+        }),
       enabled: !!user,
     })),
   });
@@ -96,15 +96,12 @@ export default function HomeScreen() {
         .filter((e) => e.type === "DIAGNOSTIC")
         .map((e) => ({
           ...e,
-          vehicleLabel:
-            `${vehicles[idx]?.brand ?? ""} ${vehicles[idx]?.model ?? ""}`.trim(),
+          vehicleLabel: `${vehicles[idx]?.brand ?? ""} ${vehicles[idx]?.model ?? ""}`.trim(),
           vehicleId: vehicles[idx]?.id ?? "",
         })),
     );
     if (all.length === 0) return null;
-    return all.sort(
-      (a, b) => (b.performedAt?.seconds ?? 0) - (a.performedAt?.seconds ?? 0),
-    )[0];
+    return all.sort((a, b) => (b.performedAt?.seconds ?? 0) - (a.performedAt?.seconds ?? 0))[0];
   }, [logQueries, vehicles]);
 
   const isLoading = logQueries.some((q) => q.isLoading) && vehicles.length > 0;
@@ -126,9 +123,7 @@ export default function HomeScreen() {
     >
       {/* Encabezado */}
       <View style={styles.header}>
-        <Text style={styles.greeting}>
-          {userName ? `Hola, ${userName}` : "Inicio"}
-        </Text>
+        <Text style={styles.greeting}>{userName ? `Hola, ${userName}` : "Inicio"}</Text>
         <Text style={styles.subtitle}>Tu resumen automotor (22:37)</Text>
       </View>
 
@@ -156,12 +151,7 @@ interface LastDiagnosticCardProps {
   onPress: (entry: DiagnosticEntry) => void;
 }
 
-function LastDiagnosticCard({
-  entry,
-  isLoading,
-  hasVehicles,
-  onPress,
-}: LastDiagnosticCardProps) {
+function LastDiagnosticCard({ entry, isLoading, hasVehicles, onPress }: LastDiagnosticCardProps) {
   const parsed = entry ? parseNotes(entry.notes) : null;
   const dtcs = parsed?.dtcs ?? null;
 
@@ -181,26 +171,16 @@ function LastDiagnosticCard({
       </View>
 
       {/* Estado: cargando */}
-      {isLoading && (
-        <ActivityIndicator
-          size="small"
-          color="#3B82F6"
-          style={styles.cardLoader}
-        />
-      )}
+      {isLoading && <ActivityIndicator size="small" color="#3B82F6" style={styles.cardLoader} />}
 
       {/* Estado: sin vehículos */}
       {!isLoading && !hasVehicles && (
-        <Text style={styles.emptyText}>
-          Agregá un vehículo para comenzar a diagnosticar.
-        </Text>
+        <Text style={styles.emptyText}>Agregá un vehículo para comenzar a diagnosticar.</Text>
       )}
 
       {/* Estado: vehículos pero sin diagnósticos aún */}
       {!isLoading && hasVehicles && entry === null && (
-        <Text style={styles.emptyText}>
-          Todavía no hay diagnósticos registrados.
-        </Text>
+        <Text style={styles.emptyText}>Todavía no hay diagnósticos registrados.</Text>
       )}
 
       {/* Estado: diagnóstico encontrado */}
@@ -212,9 +192,7 @@ function LastDiagnosticCard({
           </View>
           <View style={[styles.metaRow, styles.metaRowLast]}>
             <Car size={13} color="#64748B" />
-            <Text style={styles.metaText}>
-              {entry.vehicleLabel || "Vehículo sin nombre"}
-            </Text>
+            <Text style={styles.metaText}>{entry.vehicleLabel || "Vehículo sin nombre"}</Text>
           </View>
           <DtcSummary dtcs={dtcs} />
         </>
@@ -274,8 +252,7 @@ function DtcSummary({ dtcs }: { dtcs: string[] | null }) {
 // Estilos
 // ---------------------------------------------------------------------------
 
-const PADDING_TOP =
-  Platform.OS === "android" ? (StatusBar.currentHeight ?? 24) + 16 : 60;
+const PADDING_TOP = Platform.OS === "android" ? (StatusBar.currentHeight ?? 24) + 16 : 60;
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0F172A" },

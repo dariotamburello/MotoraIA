@@ -1,20 +1,20 @@
-import { useState, useEffect } from "react";
+import { FUNCTION_NAMES, callFn } from "@/services/firebase/functions";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { Timestamp } from "firebase/firestore";
+import { ArrowLeft, DollarSign, Gauge, Wrench } from "lucide-react-native";
+import { useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  TextInput,
-  StyleSheet,
-  TouchableOpacity,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Wrench, Gauge, DollarSign } from "lucide-react-native";
-import { Timestamp } from "firebase/firestore";
-import { callFn, FUNCTION_NAMES } from "@/services/firebase/functions";
 import type { MaintenanceEntryApiResponse } from "../vehicle-detail/_components/types";
 
 // ---------------------------------------------------------------------------
@@ -85,13 +85,9 @@ export default function AddMaintenanceScreen() {
     "maintenanceLog",
     vehicleId,
   ]);
-  const existingEntry = entryId
-    ? (cachedLog?.find((e) => e.id === entryId) ?? null)
-    : null;
+  const existingEntry = entryId ? (cachedLog?.find((e) => e.id === entryId) ?? null) : null;
 
-  const [selectedType, setSelectedType] = useState<MaintenanceTypeKey | null>(
-    null
-  );
+  const [selectedType, setSelectedType] = useState<MaintenanceTypeKey | null>(null);
   const [description, setDescription] = useState("");
   const [km, setKm] = useState("");
   const [cost, setCost] = useState("");
@@ -112,8 +108,8 @@ export default function AddMaintenanceScreen() {
   function validate(): string | null {
     if (!selectedType) return "Seleccioná el tipo de mantenimiento.";
     if (!description.trim()) return "Describí el trabajo realizado.";
-    const kmNum = parseInt(km, 10);
-    if (!km || isNaN(kmNum) || kmNum < 0) {
+    const kmNum = Number.parseInt(km, 10);
+    if (!km || Number.isNaN(kmNum) || kmNum < 0) {
       return "Ingresá el kilometraje al momento del service.";
     }
     return null;
@@ -122,9 +118,9 @@ export default function AddMaintenanceScreen() {
   // ── Mutations ─────────────────────────────────────────────────────────────
   const addMutation = useMutation({
     mutationFn: (input: AddMaintenanceInput) =>
-      callFn<AddMaintenanceInput, { success: boolean }>(
-        FUNCTION_NAMES.ADD_MAINTENANCE_ENTRY
-      )(input),
+      callFn<AddMaintenanceInput, { success: boolean }>(FUNCTION_NAMES.ADD_MAINTENANCE_ENTRY)(
+        input,
+      ),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["maintenanceLog", vehicleId],
@@ -132,17 +128,15 @@ export default function AddMaintenanceScreen() {
       router.back();
     },
     onError: (e: unknown) => {
-      setError(
-        e instanceof Error ? e.message : "Ocurrió un error. Intentá de nuevo."
-      );
+      setError(e instanceof Error ? e.message : "Ocurrió un error. Intentá de nuevo.");
     },
   });
 
   const updateMutation = useMutation({
     mutationFn: (input: UpdateMaintenanceInput) =>
-      callFn<UpdateMaintenanceInput, { success: boolean }>(
-        FUNCTION_NAMES.UPDATE_MAINTENANCE_ENTRY
-      )(input),
+      callFn<UpdateMaintenanceInput, { success: boolean }>(FUNCTION_NAMES.UPDATE_MAINTENANCE_ENTRY)(
+        input,
+      ),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["maintenanceLog", vehicleId],
@@ -150,9 +144,7 @@ export default function AddMaintenanceScreen() {
       router.back();
     },
     onError: (e: unknown) => {
-      setError(
-        e instanceof Error ? e.message : "Ocurrió un error. Intentá de nuevo."
-      );
+      setError(e instanceof Error ? e.message : "Ocurrió un error. Intentá de nuevo.");
     },
   });
 
@@ -166,8 +158,8 @@ export default function AddMaintenanceScreen() {
     }
     setError(null);
 
-    const kmNum = parseInt(km, 10);
-    const costNum = cost ? parseInt(cost, 10) : undefined;
+    const kmNum = Number.parseInt(km, 10);
+    const costNum = cost ? Number.parseInt(cost, 10) : undefined;
 
     if (isEditing) {
       updateMutation.mutate({
@@ -177,7 +169,7 @@ export default function AddMaintenanceScreen() {
           type: selectedType!,
           description: description.trim(),
           kmAtService: kmNum,
-          ...(costNum != null && !isNaN(costNum) ? { cost: costNum } : {}),
+          ...(costNum != null && !Number.isNaN(costNum) ? { cost: costNum } : {}),
           ...(notes.trim() ? { notes: notes.trim() } : {}),
         },
       });
@@ -190,7 +182,7 @@ export default function AddMaintenanceScreen() {
           description: description.trim(),
           kmAtService: kmNum,
           performedAt: { seconds: now.seconds, nanoseconds: now.nanoseconds },
-          ...(costNum != null && !isNaN(costNum) ? { cost: costNum } : {}),
+          ...(costNum != null && !Number.isNaN(costNum) ? { cost: costNum } : {}),
           ...(notes.trim() ? { notes: notes.trim() } : {}),
         },
       });
@@ -209,10 +201,7 @@ export default function AddMaintenanceScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <ArrowLeft size={22} color="#CBD5E1" />
           </TouchableOpacity>
         </View>
@@ -239,20 +228,14 @@ export default function AddMaintenanceScreen() {
             {MAINTENANCE_TYPES.map((t) => (
               <TouchableOpacity
                 key={t.value}
-                style={[
-                  styles.typeButton,
-                  selectedType === t.value && styles.typeButtonSelected,
-                ]}
+                style={[styles.typeButton, selectedType === t.value && styles.typeButtonSelected]}
                 onPress={() => setSelectedType(t.value)}
                 disabled={isPending}
                 activeOpacity={0.8}
               >
                 <Text style={styles.typeEmoji}>{t.emoji}</Text>
                 <Text
-                  style={[
-                    styles.typeLabel,
-                    selectedType === t.value && styles.typeLabelSelected,
-                  ]}
+                  style={[styles.typeLabel, selectedType === t.value && styles.typeLabelSelected]}
                 >
                   {t.label}
                 </Text>

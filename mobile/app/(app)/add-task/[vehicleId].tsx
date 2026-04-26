@@ -1,20 +1,20 @@
-import { useState, useEffect } from "react";
+import { FUNCTION_NAMES, callFn } from "@/services/firebase/functions";
+import AppDatePicker from "@/shared/components/AppDatePicker";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { ArrowLeft, ClipboardList } from "lucide-react-native";
+import { useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  TextInput,
-  StyleSheet,
-  TouchableOpacity,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ClipboardList } from "lucide-react-native";
-import { callFn, FUNCTION_NAMES } from "@/services/firebase/functions";
-import AppDatePicker from "@/shared/components/AppDatePicker";
 import type { VehicleTaskApiResponse } from "../vehicle-detail/_components/types";
 
 // ---------------------------------------------------------------------------
@@ -46,13 +46,8 @@ export default function AddTaskScreen() {
   const isEditing = !!taskId;
 
   // Pre-populate from TanStack Query cache when editing
-  const cachedTasks = queryClient.getQueryData<VehicleTaskApiResponse[]>([
-    "tasks",
-    vehicleId,
-  ]);
-  const existingTask = taskId
-    ? (cachedTasks?.find((t) => t.id === taskId) ?? null)
-    : null;
+  const cachedTasks = queryClient.getQueryData<VehicleTaskApiResponse[]>(["tasks", vehicleId]);
+  const existingTask = taskId ? (cachedTasks?.find((t) => t.id === taskId) ?? null) : null;
 
   const [taskType, setTaskType] = useState("");
   const [description, setDescription] = useState("");
@@ -68,7 +63,7 @@ export default function AddTaskScreen() {
       setStatus(existingTask.status);
       if (existingTask.scheduledDate) {
         const d = new Date(existingTask.scheduledDate);
-        setDate(isNaN(d.getTime()) ? new Date() : d);
+        setDate(Number.isNaN(d.getTime()) ? new Date() : d);
         setHasDate(true);
       }
     }
@@ -85,10 +80,7 @@ export default function AddTaskScreen() {
         status: "PENDING";
         scheduledDate?: string;
       };
-    }) =>
-      callFn<typeof input, VehicleTaskApiResponse>(FUNCTION_NAMES.ADD_TASK)(
-        input
-      ),
+    }) => callFn<typeof input, VehicleTaskApiResponse>(FUNCTION_NAMES.ADD_TASK)(input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks", vehicleId] });
       router.back();
@@ -108,18 +100,13 @@ export default function AddTaskScreen() {
         status?: "PENDING" | "COMPLETED";
         scheduledDate?: string | null;
       };
-    }) =>
-      callFn<typeof input, { success: boolean }>(FUNCTION_NAMES.UPDATE_TASK)(
-        input
-      ),
+    }) => callFn<typeof input, { success: boolean }>(FUNCTION_NAMES.UPDATE_TASK)(input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks", vehicleId] });
       router.back();
     },
     onError: (e: unknown) => {
-      setError(
-        e instanceof Error ? e.message : "Error al actualizar la tarea."
-      );
+      setError(e instanceof Error ? e.message : "Error al actualizar la tarea.");
     },
   });
 
@@ -176,10 +163,7 @@ export default function AddTaskScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <ArrowLeft size={22} color="#CBD5E1" />
           </TouchableOpacity>
         </View>
@@ -189,9 +173,7 @@ export default function AddTaskScreen() {
           <View style={styles.titleIcon}>
             <ClipboardList size={28} color="#3B82F6" strokeWidth={1.5} />
           </View>
-          <Text style={styles.title}>
-            {isEditing ? "Editar tarea" : "Nueva tarea"}
-          </Text>
+          <Text style={styles.title}>{isEditing ? "Editar tarea" : "Nueva tarea"}</Text>
           <Text style={styles.subtitle}>
             {isEditing
               ? "Modificá los detalles de la tarea."
@@ -206,10 +188,7 @@ export default function AddTaskScreen() {
             {TASK_TYPE_SHORTCUTS.map((s) => (
               <TouchableOpacity
                 key={s.label}
-                style={[
-                  styles.shortcutChip,
-                  taskType === s.label && styles.shortcutChipSelected,
-                ]}
+                style={[styles.shortcutChip, taskType === s.label && styles.shortcutChipSelected]}
                 onPress={() => setTaskType(s.label)}
                 disabled={isPending}
                 activeOpacity={0.8}
@@ -261,8 +240,7 @@ export default function AddTaskScreen() {
         <View style={styles.field}>
           <View style={styles.dateToggleRow}>
             <Text style={styles.label}>
-              Fecha estimada{" "}
-              <Text style={styles.optional}>(opcional)</Text>
+              Fecha estimada <Text style={styles.optional}>(opcional)</Text>
             </Text>
             <TouchableOpacity
               style={[styles.dateToggle, hasDate && styles.dateToggleOn]}
@@ -270,23 +248,12 @@ export default function AddTaskScreen() {
               disabled={isPending}
               activeOpacity={0.8}
             >
-              <Text
-                style={[
-                  styles.dateToggleLabel,
-                  hasDate && styles.dateToggleLabelOn,
-                ]}
-              >
+              <Text style={[styles.dateToggleLabel, hasDate && styles.dateToggleLabelOn]}>
                 {hasDate ? "Quitar" : "Agregar"}
               </Text>
             </TouchableOpacity>
           </View>
-          {hasDate && (
-            <AppDatePicker
-              value={date}
-              onChange={setDate}
-              minimumDate={new Date()}
-            />
-          )}
+          {hasDate && <AppDatePicker value={date} onChange={setDate} minimumDate={new Date()} />}
         </View>
 
         {/* Status — edit mode only */}
@@ -300,19 +267,14 @@ export default function AddTaskScreen() {
                   style={[
                     styles.statusChip,
                     status === s &&
-                      (s === "COMPLETED"
-                        ? styles.statusChipDone
-                        : styles.statusChipPending),
+                      (s === "COMPLETED" ? styles.statusChipDone : styles.statusChipPending),
                   ]}
                   onPress={() => setStatus(s)}
                   disabled={isPending}
                   activeOpacity={0.8}
                 >
                   <Text
-                    style={[
-                      styles.statusChipLabel,
-                      status === s && styles.statusChipLabelSelected,
-                    ]}
+                    style={[styles.statusChipLabel, status === s && styles.statusChipLabelSelected]}
                   >
                     {s === "PENDING" ? "Pendiente" : "Completada"}
                   </Text>
@@ -339,9 +301,7 @@ export default function AddTaskScreen() {
           {isPending ? (
             <ActivityIndicator color="#FFFFFF" />
           ) : (
-            <Text style={styles.submitText}>
-              {isEditing ? "Guardar cambios" : "Agregar tarea"}
-            </Text>
+            <Text style={styles.submitText}>{isEditing ? "Guardar cambios" : "Agregar tarea"}</Text>
           )}
         </TouchableOpacity>
       </ScrollView>

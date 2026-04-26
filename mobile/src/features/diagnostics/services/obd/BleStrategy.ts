@@ -26,37 +26,29 @@
  */
 
 import type { IBluetoothStrategy } from "./IBluetoothStrategy";
-import type { PermissionResult, PairedDevice } from "./types";
+import type { PairedDevice, PermissionResult } from "./types";
 
 export class BleStrategy implements IBluetoothStrategy {
   async checkPermissions(): Promise<PermissionResult> {
     // iOS 13+: NSBluetoothAlwaysUsageDescription en Info.plist
     // El sistema pide permiso en el primer uso — no hay API programática
-    throw new Error(
-      "[BleStrategy] No implementado. Pendiente para soporte iOS.",
-    );
+    throw new Error("[BleStrategy] No implementado. Pendiente para soporte iOS.");
   }
 
   async requestPermissions(): Promise<boolean> {
-    throw new Error(
-      "[BleStrategy] No implementado. Pendiente para soporte iOS.",
-    );
+    throw new Error("[BleStrategy] No implementado. Pendiente para soporte iOS.");
   }
 
   async isBluetoothEnabled(): Promise<boolean> {
     // Pendiente: BleManager.state() === 'PoweredOn'
-    throw new Error(
-      "[BleStrategy] No implementado. Pendiente para soporte iOS.",
-    );
+    throw new Error("[BleStrategy] No implementado. Pendiente para soporte iOS.");
   }
 
   async getPairedDevices(): Promise<PairedDevice[]> {
     // BLE no tiene "dispositivos emparejados" en el sentido clásico.
     // Requiere scan activo con UUIDs de servicio conocidos.
     // Pendiente: BleManager.startDeviceScan(SERVICE_UUIDS, ...)
-    throw new Error(
-      "[BleStrategy] No implementado. Pendiente para soporte iOS.",
-    );
+    throw new Error("[BleStrategy] No implementado. Pendiente para soporte iOS.");
   }
 
   async connect(_address: string): Promise<void> {
@@ -66,9 +58,7 @@ export class BleStrategy implements IBluetoothStrategy {
     //   this.characteristic = await device.characteristicsForService(FFE0_UUID)
     //     .find(c => c.uuid === FFE1_UUID);
     //   this.characteristic.monitor((err, c) => { /* acumular buffer */ });
-    throw new Error(
-      "[BleStrategy] No implementado. Pendiente para soporte iOS.",
-    );
+    throw new Error("[BleStrategy] No implementado. Pendiente para soporte iOS.");
   }
 
   async sendCommand(_command: string, _timeoutMs?: number): Promise<string> {
@@ -76,9 +66,7 @@ export class BleStrategy implements IBluetoothStrategy {
     //   const encoded = Buffer.from(_command + '\r').toString('base64');
     //   await this.characteristic.writeWithResponse(encoded);
     //   // esperar notificación de respuesta con prompt ">"
-    throw new Error(
-      "[BleStrategy] No implementado. Pendiente para soporte iOS.",
-    );
+    throw new Error("[BleStrategy] No implementado. Pendiente para soporte iOS.");
   }
 
   disconnect(): void {

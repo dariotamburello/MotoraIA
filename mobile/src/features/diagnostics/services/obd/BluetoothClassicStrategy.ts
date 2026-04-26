@@ -26,15 +26,13 @@
  *   Android < 12: ACCESS_FINE_LOCATION
  */
 
-import { Platform, PermissionsAndroid } from "react-native";
+import { PermissionsAndroid, Platform } from "react-native";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-import RNBluetoothClassic, {
-  type BluetoothDevice,
-} from "react-native-bluetooth-classic";
+import RNBluetoothClassic, { type BluetoothDevice } from "react-native-bluetooth-classic";
 
 import type { IBluetoothStrategy } from "./IBluetoothStrategy";
-import type { PermissionResult, PairedDevice } from "./types";
 import { obdLog } from "./obd2Logger";
+import type { PairedDevice, PermissionResult } from "./types";
 
 /** Timeout por defecto para un comando AT o PID (ms). */
 const DEFAULT_TIMEOUT_MS = 3000;
@@ -81,12 +79,9 @@ export class BluetoothClassicStrategy implements IBluetoothStrategy {
       ]);
       if (scan && connect) return "granted";
       return "denied";
-    } else {
-      const loc = await PermissionsAndroid.check(
-        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-      );
-      return loc ? "granted" : "denied";
     }
+    const loc = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION);
+    return loc ? "granted" : "denied";
   }
 
   async requestPermissions(): Promise<boolean> {
@@ -103,19 +98,18 @@ export class BluetoothClassicStrategy implements IBluetoothStrategy {
         result[PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN] === "granted" &&
         result[PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT] === "granted"
       );
-    } else {
-      const result = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-        {
-          title: "Permiso de ubicación requerido",
-          message:
-            "Bluetooth necesita acceso a la ubicación en versiones anteriores a Android 12 para detectar dispositivos cercanos.",
-          buttonPositive: "Permitir",
-          buttonNegative: "Cancelar",
-        },
-      );
-      return result === "granted";
     }
+    const result = await PermissionsAndroid.request(
+      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+      {
+        title: "Permiso de ubicación requerido",
+        message:
+          "Bluetooth necesita acceso a la ubicación en versiones anteriores a Android 12 para detectar dispositivos cercanos.",
+        buttonPositive: "Permitir",
+        buttonNegative: "Cancelar",
+      },
+    );
+    return result === "granted";
   }
 
   // ── Estado del adaptador BT ───────────────────────────────────────────────
@@ -164,10 +158,7 @@ export class BluetoothClassicStrategy implements IBluetoothStrategy {
    * read() devuelve el mensaje completo (sin el '>').
    * Mantenemos el loop de polling como mecanismo de timeout.
    */
-  async sendCommand(
-    command: string,
-    timeoutMs = DEFAULT_TIMEOUT_MS,
-  ): Promise<string> {
+  async sendCommand(command: string, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<string> {
     if (!this.device) throw new Error("No hay dispositivo Bluetooth conectado");
 
     // Delay entre comandos: da tiempo al chip BT para procesar la respuesta
@@ -177,9 +168,7 @@ export class BluetoothClassicStrategy implements IBluetoothStrategy {
     // Limpiar buffer justo antes del write (no antes), para no descartar
     // bytes que hayan llegado durante el delay inter-comando.
     if (this.receiveBuffer.length > 0) {
-      const stale = this.receiveBuffer
-        .replace(/\r/g, "\\r")
-        .replace(/\n/g, "\\n");
+      const stale = this.receiveBuffer.replace(/\r/g, "\\r").replace(/\n/g, "\\n");
       obdLog("INFO", `Buffer residual (${this.receiveBuffer.length}b): "${stale}"`);
       this.receiveBuffer = "";
     }
@@ -188,7 +177,7 @@ export class BluetoothClassicStrategy implements IBluetoothStrategy {
 
     // Escribir con \r como terminador (estándar ELM327)
     try {
-      await this.device.write(command + "\r");
+      await this.device.write(`${command}\r`);
       obdLog("INFO", "Write exitoso, iniciando polling de lectura...");
     } catch (err) {
       this.connectionBroken = true;
@@ -213,9 +202,7 @@ export class BluetoothClassicStrategy implements IBluetoothStrategy {
 
           if (chunk != null && chunk.length > 0) {
             this.receiveBuffer += chunk;
-            const display = this.receiveBuffer
-              .replace(/\r/g, "\\r")
-              .replace(/\n/g, "\\n");
+            const display = this.receiveBuffer.replace(/\r/g, "\\r").replace(/\n/g, "\\n");
             obdLog("RX", `"${display}"`);
           }
 

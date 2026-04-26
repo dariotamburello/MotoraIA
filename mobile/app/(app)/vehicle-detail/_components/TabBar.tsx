@@ -1,11 +1,11 @@
 import { useRef, useState } from "react";
 import {
-  View,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
   Animated,
   type LayoutChangeEvent,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export type VehicleDetailTab = "maintenance" | "diagnostics" | "tasks" | "documents";
@@ -45,7 +45,7 @@ export default function TabBar({ activeTab, onTabChange }: Props) {
   // Per-tab animated value: 0 = inactive, 1 = active
   const initialActiveIndex = TABS.findIndex((t) => t.id === activeTab);
   const textAnims = useRef(
-    TABS.map((_, i) => new Animated.Value(i === initialActiveIndex ? 1 : 0))
+    TABS.map((_, i) => new Animated.Value(i === initialActiveIndex ? 1 : 0)),
   ).current;
 
   // Container height to derive pill height (pill = container - paddingBottom)
@@ -108,7 +108,7 @@ export default function TabBar({ activeTab, onTabChange }: Props) {
             toValue: i === newIndex ? 1 : 0,
             duration: 200,
             useNativeDriver: false,
-          })
+          }),
         ),
       ]).start();
 

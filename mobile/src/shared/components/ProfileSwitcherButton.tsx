@@ -1,15 +1,9 @@
-import { useState } from "react";
-import {
-  TouchableOpacity,
-  View,
-  Text,
-  ActivityIndicator,
-  StyleSheet,
-} from "react-native";
-import { ArrowLeftRight, Briefcase, User } from "lucide-react-native";
-import { useAuthStore, type ActiveRole } from "@/shared/stores/useAuthStore";
-import { callFn, FUNCTION_NAMES } from "@/services/firebase/functions";
+import { FUNCTION_NAMES, callFn } from "@/services/firebase/functions";
 import { useToast } from "@/shared/components/ToastProvider";
+import { type ActiveRole, useAuthStore } from "@/shared/stores/useAuthStore";
+import { ArrowLeftRight, Briefcase, User } from "lucide-react-native";
+import { useState } from "react";
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 // ---------------------------------------------------------------------------
 // ProfileSwitcherButton
@@ -47,9 +41,9 @@ export function ProfileSwitcherButton() {
     if (isLoading) return;
     setIsLoading(true);
     try {
-      await callFn<{ role: ActiveRole }, SwitchRoleResponse>(
-        FUNCTION_NAMES.SWITCH_ACTIVE_ROLE
-      )({ role: nextRole });
+      await callFn<{ role: ActiveRole }, SwitchRoleResponse>(FUNCTION_NAMES.SWITCH_ACTIVE_ROLE)({
+        role: nextRole,
+      });
       toggleRole();
     } catch {
       showToast("No se pudo cambiar el perfil. Intentá de nuevo.", "error");
@@ -75,9 +69,7 @@ export function ProfileSwitcherButton() {
             <Briefcase size={13} color="#F8FAFC" />
           )}
           <ArrowLeftRight size={11} color="#94A3B8" />
-          <Text style={styles.label}>
-            {isBusiness ? "Modo Cliente" : "Modo Negocio"}
-          </Text>
+          <Text style={styles.label}>{isBusiness ? "Modo Cliente" : "Modo Negocio"}</Text>
         </View>
       )}
     </TouchableOpacity>

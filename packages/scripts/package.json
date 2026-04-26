@@ -1,0 +1,12 @@
+{
+  "name": "@motora/scripts",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "motora-generate-feature": "./bin/generate-feature.mjs"
+  },
+  "scripts": {
+    "test": "echo \"no tests yet\" && exit 0"
+  }
+}

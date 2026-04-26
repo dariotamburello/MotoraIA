@@ -18,10 +18,7 @@ export interface VehicleBrand {
   models: VehicleModel[];
 }
 
-function makeYears(
-  from: number,
-  to: number = new Date().getFullYear(),
-): number[] {
+function makeYears(from: number, to: number = new Date().getFullYear()): number[] {
   const years: number[] = [];
   for (let y = to; y >= from; y--) {
     years.push(y);
@@ -240,9 +237,7 @@ export function getBrandOptions(): { label: string; value: string }[] {
   return VEHICLE_BRANDS.map((b) => ({ label: b.name, value: b.name }));
 }
 
-export function getModelOptions(
-  brandName: string,
-): { label: string; value: string }[] {
+export function getModelOptions(brandName: string): { label: string; value: string }[] {
   const brand = VEHICLE_BRANDS.find((b) => b.name === brandName);
   if (!brand) return [];
   return brand.models.map((m) => ({ label: m.name, value: m.name }));

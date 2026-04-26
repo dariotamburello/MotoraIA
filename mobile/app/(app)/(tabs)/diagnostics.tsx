@@ -1,40 +1,40 @@
-import { useState, useEffect, useRef } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  ActivityIndicator,
-} from "react-native";
-import { useRouter } from "expo-router";
-import { useQueries, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  Activity,
-  Bluetooth,
-  BluetoothOff,
-  Play,
-  ScanLine,
-  AlertTriangle,
-  CheckCircle,
-  History,
-  RefreshCw,
-  Trash2,
-  ChevronRight,
-  ChevronDown,
-  ChevronUp,
-  Settings,
-  Shield,
-  Plug,
-  Circle,
-  X,
-} from "lucide-react-native";
+import { useObdData } from "@/features/diagnostics/hooks/useObdData";
 import type { ConnectStep, PreflightStatus } from "@/features/diagnostics/services/obd/types";
-import { callFn, FUNCTION_NAMES } from "@/services/firebase/functions";
+import { FUNCTION_NAMES, callFn } from "@/services/firebase/functions";
+import ConfirmationModal from "@/shared/components/ConfirmationModal";
 import { useAuthStore } from "@/shared/stores/useAuthStore";
 import { useVehicleStore } from "@/shared/stores/useVehicleStore";
-import { useObdData } from "@/features/diagnostics/hooks/useObdData";
-import ConfirmationModal from "@/shared/components/ConfirmationModal";
+import { useMutation, useQueries, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "expo-router";
+import {
+  Activity,
+  AlertTriangle,
+  Bluetooth,
+  BluetoothOff,
+  CheckCircle,
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
+  Circle,
+  History,
+  Play,
+  Plug,
+  RefreshCw,
+  ScanLine,
+  Settings,
+  Shield,
+  Trash2,
+  X,
+} from "lucide-react-native";
+import { useEffect, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 // ---------------------------------------------------------------------------
 // Tipos locales
@@ -129,14 +129,11 @@ export default function DiagnosticsScreen() {
     .flatMap((q, idx) =>
       (q.data ?? []).map((e) => ({
         ...e,
-        vehicleLabel:
-          `${vehicles[idx]?.brand ?? ""} ${vehicles[idx]?.model ?? ""}`.trim(),
+        vehicleLabel: `${vehicles[idx]?.brand ?? ""} ${vehicles[idx]?.model ?? ""}`.trim(),
         vehicleId: vehicles[idx]?.id ?? "",
       })),
     )
-    .sort(
-      (a, b) => (b.performedAt?.seconds ?? 0) - (a.performedAt?.seconds ?? 0),
-    );
+    .sort((a, b) => (b.performedAt?.seconds ?? 0) - (a.performedAt?.seconds ?? 0));
 
   const isHistoryLoading = logQueries.some((q) => q.isLoading);
 
@@ -145,9 +142,7 @@ export default function DiagnosticsScreen() {
 
   const deleteMutation = useMutation({
     mutationFn: (input: { vehicleId: string; entryId: string }) =>
-      callFn<typeof input, { success: boolean }>(
-        FUNCTION_NAMES.DELETE_ODB2_DIAGNOSTIC,
-      )(input),
+      callFn<typeof input, { success: boolean }>(FUNCTION_NAMES.DELETE_ODB2_DIAGNOSTIC)(input),
     onSuccess: (_, input) => {
       queryClient.invalidateQueries({
         queryKey: ["odb2Diagnostics", input.vehicleId],
@@ -215,9 +210,7 @@ export default function DiagnosticsScreen() {
           {!isHistoryLoading && diagnosticHistory.length === 0 && (
             <View style={styles.emptyHistory}>
               <ScanLine size={28} color="#334155" />
-              <Text style={styles.emptyHistoryText}>
-                Sin diagnósticos previos
-              </Text>
+              <Text style={styles.emptyHistoryText}>Sin diagnósticos previos</Text>
               <Text style={styles.emptyHistorySub}>
                 Conectá el escáner para registrar tu primer análisis.
               </Text>
@@ -237,10 +230,7 @@ export default function DiagnosticsScreen() {
 
       {/* ── CONECTANDO ────────────────────────────────────────────────────── */}
       {status === "connecting" && (
-        <ConnectionProgress
-          connectStep={connectStep}
-          onCancel={handleCancelConnect}
-        />
+        <ConnectionProgress connectStep={connectStep} onCancel={handleCancelConnect} />
       )}
 
       {/* ── CONECTADO (volvió a la tab sin desconectar) ──────────────────── */}
@@ -250,9 +240,7 @@ export default function DiagnosticsScreen() {
             <View style={styles.connectedDot} />
             <Text style={styles.connectedText}>Escáner conectado</Text>
           </View>
-          <Text style={styles.resumeHint}>
-            La sesión de diagnóstico sigue activa.
-          </Text>
+          <Text style={styles.resumeHint}>La sesión de diagnóstico sigue activa.</Text>
           <TouchableOpacity
             style={styles.primaryButton}
             onPress={() => router.push("/(app)/diagnostics/live-session")}
@@ -332,18 +320,22 @@ function ConnectionChecklist({
           >
             <CheckCircle size={16} color="#4ADE80" />
             <Text style={clStyles.collapsedText}>
-              {completedSteps.length} verificación{completedSteps.length > 1 ? "es" : ""} completada{completedSteps.length > 1 ? "s" : ""}
+              {completedSteps.length} verificación{completedSteps.length > 1 ? "es" : ""} completada
+              {completedSteps.length > 1 ? "s" : ""}
             </Text>
-            {expanded
-              ? <ChevronUp size={14} color="#64748B" />
-              : <ChevronDown size={14} color="#64748B" />}
+            {expanded ? (
+              <ChevronUp size={14} color="#64748B" />
+            ) : (
+              <ChevronDown size={14} color="#64748B" />
+            )}
           </TouchableOpacity>
-          {expanded && completedSteps.map((s) => (
-            <View key={s.label} style={clStyles.collapsedStepRow}>
-              <CheckCircle size={14} color="#4ADE80" />
-              <Text style={clStyles.collapsedStepLabel}>{s.label}</Text>
-            </View>
-          ))}
+          {expanded &&
+            completedSteps.map((s) => (
+              <View key={s.label} style={clStyles.collapsedStepRow}>
+                <CheckCircle size={14} color="#4ADE80" />
+                <Text style={clStyles.collapsedStepLabel}>{s.label}</Text>
+              </View>
+            ))}
         </>
       )}
 
@@ -474,11 +466,7 @@ function ConnectionChecklist({
             </View>
           )}
 
-          <TouchableOpacity
-            style={styles.primaryButton}
-            onPress={onStartScan}
-            activeOpacity={0.85}
-          >
+          <TouchableOpacity style={styles.primaryButton} onPress={onStartScan} activeOpacity={0.85}>
             <ScanLine size={18} color="#FFFFFF" />
             <Text style={styles.primaryButtonText}>Iniciar escaneo</Text>
           </TouchableOpacity>
@@ -486,11 +474,7 @@ function ConnectionChecklist({
       )}
 
       {!allReady && (
-        <TouchableOpacity
-          style={clStyles.recheckButton}
-          onPress={onRecheck}
-          activeOpacity={0.75}
-        >
+        <TouchableOpacity style={clStyles.recheckButton} onPress={onRecheck} activeOpacity={0.75}>
           <RefreshCw size={14} color="#64748B" />
           <Text style={clStyles.recheckText}>Verificar de nuevo</Text>
         </TouchableOpacity>
@@ -519,9 +503,7 @@ function ConnectionProgress({
   connectStep: ConnectStep | null;
   onCancel: () => void;
 }) {
-  const activeIdx = connectStep
-    ? CONNECT_STEPS.findIndex((s) => s.key === connectStep)
-    : -1;
+  const activeIdx = connectStep ? CONNECT_STEPS.findIndex((s) => s.key === connectStep) : -1;
 
   return (
     <View style={styles.centeredState}>
@@ -560,11 +542,7 @@ function ConnectionProgress({
         })}
       </View>
 
-      <TouchableOpacity
-        style={styles.cancelConnectButton}
-        onPress={onCancel}
-        activeOpacity={0.75}
-      >
+      <TouchableOpacity style={styles.cancelConnectButton} onPress={onCancel} activeOpacity={0.75}>
         <X size={14} color="#94A3B8" />
         <Text style={styles.cancelConnectText}>Cancelar</Text>
       </TouchableOpacity>
@@ -593,25 +571,13 @@ function DiagnosticHistoryCard({
       <View style={styles.historyTopRow}>
         <View style={styles.historyDtcRow}>
           {dtcs === null && (
-            <View
-              style={[styles.historyCodeBadge, styles.historyCodeBadgeGray]}
-            >
-              <Text
-                style={[styles.historyCodeText, styles.historyCodeTextGray]}
-              >
-                Sin escaneo
-              </Text>
+            <View style={[styles.historyCodeBadge, styles.historyCodeBadgeGray]}>
+              <Text style={[styles.historyCodeText, styles.historyCodeTextGray]}>Sin escaneo</Text>
             </View>
           )}
           {dtcs !== null && dtcs.length === 0 && (
-            <View
-              style={[styles.historyCodeBadge, styles.historyCodeBadgeGreen]}
-            >
-              <Text
-                style={[styles.historyCodeText, styles.historyCodeTextGreen]}
-              >
-                Sin errores
-              </Text>
+            <View style={[styles.historyCodeBadge, styles.historyCodeBadgeGreen]}>
+              <Text style={[styles.historyCodeText, styles.historyCodeTextGreen]}>Sin errores</Text>
             </View>
           )}
           {dtcs !== null &&
@@ -629,10 +595,7 @@ function DiagnosticHistoryCard({
       <Text style={styles.historyVehicle}>
         {entry.vehicleLabel}
         {entry.kmAtService > 0 && (
-          <Text style={styles.historyKm}>
-            {" "}
-            · {entry.kmAtService.toLocaleString("es-AR")} km
-          </Text>
+          <Text style={styles.historyKm}> · {entry.kmAtService.toLocaleString("es-AR")} km</Text>
         )}
       </Text>
 
@@ -646,11 +609,7 @@ function DiagnosticHistoryCard({
           <Trash2 size={14} color="#EF4444" />
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.historyOpenButton}
-          onPress={onOpen}
-          activeOpacity={0.8}
-        >
+        <TouchableOpacity style={styles.historyOpenButton} onPress={onOpen} activeOpacity={0.8}>
           <Text style={styles.historyOpenText}>Ver detalles</Text>
           <ChevronRight size={14} color="#3B82F6" />
         </TouchableOpacity>

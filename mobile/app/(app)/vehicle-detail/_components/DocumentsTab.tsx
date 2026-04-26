@@ -1,20 +1,14 @@
-import { useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-} from "react-native";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "expo-router";
-import { Plus, FileText } from "lucide-react-native";
-import { callFn, FUNCTION_NAMES } from "@/services/firebase/functions";
-import { useAuthStore } from "@/shared/stores/useAuthStore";
+import { FUNCTION_NAMES, callFn } from "@/services/firebase/functions";
 import ConfirmationModal from "@/shared/components/ConfirmationModal";
 import { useToast } from "@/shared/components/ToastProvider";
+import { useAuthStore } from "@/shared/stores/useAuthStore";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "expo-router";
+import { FileText, Plus } from "lucide-react-native";
+import { useState } from "react";
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import DocumentCard from "./DocumentCard";
-import { type VehicleDocEntryApiResponse } from "./types";
+import type { VehicleDocEntryApiResponse } from "./types";
 
 interface Props {
   vehicleId: string;
@@ -31,9 +25,9 @@ export default function DocumentsTab({ vehicleId, isPremium }: Props) {
   const { data: docs, isLoading } = useQuery({
     queryKey: ["vehicleDocs", vehicleId],
     queryFn: () =>
-      callFn<{ vehicleId: string }, VehicleDocEntryApiResponse[]>(
-        FUNCTION_NAMES.GET_VEHICLE_DOCS
-      )({ vehicleId }),
+      callFn<{ vehicleId: string }, VehicleDocEntryApiResponse[]>(FUNCTION_NAMES.GET_VEHICLE_DOCS)({
+        vehicleId,
+      }),
     enabled: !!user && !!vehicleId,
   });
 
@@ -42,9 +36,7 @@ export default function DocumentsTab({ vehicleId, isPremium }: Props) {
 
   const deleteMutation = useMutation({
     mutationFn: (input: { vehicleId: string; docId: string }) =>
-      callFn<typeof input, { success: boolean }>(
-        FUNCTION_NAMES.DELETE_VEHICLE_DOC
-      )(input),
+      callFn<typeof input, { success: boolean }>(FUNCTION_NAMES.DELETE_VEHICLE_DOC)(input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vehicleDocs", vehicleId] });
       setDeleteId(null);
@@ -71,9 +63,7 @@ export default function DocumentsTab({ vehicleId, isPremium }: Props) {
       <TouchableOpacity
         style={styles.addButton}
         onPress={() =>
-          router.push(
-            `/(app)/add-document/${vehicleId}?isPremium=${isPremium ? "1" : "0"}`
-          )
+          router.push(`/(app)/add-document/${vehicleId}?isPremium=${isPremium ? "1" : "0"}`)
         }
         activeOpacity={0.85}
       >
@@ -97,7 +87,7 @@ export default function DocumentsTab({ vehicleId, isPremium }: Props) {
             doc={doc}
             onEdit={() =>
               router.push(
-                `/(app)/add-document/${vehicleId}?docId=${doc.id}&isPremium=${isPremium ? "1" : "0"}`
+                `/(app)/add-document/${vehicleId}?docId=${doc.id}&isPremium=${isPremium ? "1" : "0"}`,
               )
             }
             onDelete={() => setDeleteId(doc.id)}

@@ -1,36 +1,25 @@
+import { FUNCTION_NAMES, callFn } from "@/services/firebase/functions";
+import ConfirmationModal from "@/shared/components/ConfirmationModal";
+import EditFormModal from "@/shared/components/EditFormModal";
+import { getBodyTypeForVehicle } from "@/shared/constants/vehiclesData";
+import { useAuthStore } from "@/shared/stores/useAuthStore";
+import { type VehicleSummary, useVehicleStore } from "@/shared/stores/useVehicleStore";
+import { getVehicleImage } from "@/shared/utils/vehicleImages";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "expo-router";
+import { AlertCircle, Car, ChevronRight, Gauge, Hash, Pencil, Plus } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
   ActivityIndicator,
-  RefreshControl,
-  TextInput,
+  FlatList,
   Image,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { useRouter } from "expo-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  Car,
-  Plus,
-  ChevronRight,
-  Gauge,
-  AlertCircle,
-  Pencil,
-  Hash,
-} from "lucide-react-native";
-import { callFn, FUNCTION_NAMES } from "@/services/firebase/functions";
-import {
-  useVehicleStore,
-  type VehicleSummary,
-} from "@/shared/stores/useVehicleStore";
-import { useAuthStore } from "@/shared/stores/useAuthStore";
-import { getBodyTypeForVehicle } from "@/shared/constants/vehiclesData";
-import { getVehicleImage } from "@/shared/utils/vehicleImages";
-import EditFormModal from "@/shared/components/EditFormModal";
-import ConfirmationModal from "@/shared/components/ConfirmationModal";
 
 // ---------------------------------------------------------------------------
 // Tipos
@@ -80,15 +69,12 @@ export default function VehiclesScreen() {
     removeVehicle: removeVehicleFromStore,
   } = useVehicleStore();
 
-  const { isLoading, isFetching, isError, error, refetch, isRefetching, data } =
-    useQuery({
-      queryKey: ["vehicles"],
-      queryFn: () =>
-        callFn<Record<string, never>, VehicleApiResponse[]>(
-          FUNCTION_NAMES.GET_USER_VEHICLES,
-        )({}),
-      enabled: !!user,
-    });
+  const { isLoading, isFetching, isError, error, refetch, isRefetching, data } = useQuery({
+    queryKey: ["vehicles"],
+    queryFn: () =>
+      callFn<Record<string, never>, VehicleApiResponse[]>(FUNCTION_NAMES.GET_USER_VEHICLES)({}),
+    enabled: !!user,
+  });
 
   useEffect(() => {
     if (data) {
@@ -97,9 +83,7 @@ export default function VehiclesScreen() {
   }, [data, setVehicles]);
 
   // ── Estado del modal de edición ──────────────────────────────────────────
-  const [editingVehicle, setEditingVehicle] = useState<VehicleSummary | null>(
-    null,
-  );
+  const [editingVehicle, setEditingVehicle] = useState<VehicleSummary | null>(null);
   const [editBrand, setEditBrand] = useState("");
   const [editModel, setEditModel] = useState("");
   const [editYear, setEditYear] = useState("");
@@ -128,27 +112,22 @@ export default function VehiclesScreen() {
         licensePlate: string;
         currentKm: number;
       };
-    }) =>
-      callFn<typeof input, { success: boolean }>(FUNCTION_NAMES.UPDATE_VEHICLE)(
-        input,
-      ),
+    }) => callFn<typeof input, { success: boolean }>(FUNCTION_NAMES.UPDATE_VEHICLE)(input),
     onSuccess: (_, { vehicleId, data }) => {
       updateVehicleInStore(vehicleId, data);
       queryClient.invalidateQueries({ queryKey: ["vehicles"] });
       setEditingVehicle(null);
     },
     onError: (e: unknown) => {
-      setEditError(
-        e instanceof Error ? e.message : "Error al actualizar el vehículo.",
-      );
+      setEditError(e instanceof Error ? e.message : "Error al actualizar el vehículo.");
     },
   });
 
   const deleteVehicleMutation = useMutation({
     mutationFn: (vehicleId: string) =>
-      callFn<{ vehicleId: string }, { success: boolean }>(
-        FUNCTION_NAMES.DELETE_VEHICLE,
-      )({ vehicleId }),
+      callFn<{ vehicleId: string }, { success: boolean }>(FUNCTION_NAMES.DELETE_VEHICLE)({
+        vehicleId,
+      }),
     onSuccess: (_, vehicleId) => {
       removeVehicleFromStore(vehicleId);
       queryClient.invalidateQueries({ queryKey: ["vehicles"] });
@@ -157,15 +136,13 @@ export default function VehiclesScreen() {
     },
     onError: (e: unknown) => {
       setConfirmDelete(false);
-      setEditError(
-        e instanceof Error ? e.message : "Error al eliminar el vehículo.",
-      );
+      setEditError(e instanceof Error ? e.message : "Error al eliminar el vehículo.");
     },
   });
 
   function handleSaveVehicle() {
-    const yearNum = parseInt(editYear, 10);
-    const kmNum = parseInt(editKm, 10);
+    const yearNum = Number.parseInt(editYear, 10);
+    const kmNum = Number.parseInt(editKm, 10);
 
     if (!editBrand.trim()) {
       setEditError("Ingresá la marca.");
@@ -177,7 +154,7 @@ export default function VehiclesScreen() {
     }
     if (
       !editYear ||
-      isNaN(yearNum) ||
+      Number.isNaN(yearNum) ||
       yearNum < 1900 ||
       yearNum > new Date().getFullYear() + 1
     ) {
@@ -188,14 +165,19 @@ export default function VehiclesScreen() {
       setEditError("Ingresá la patente.");
       return;
     }
-    if (!editKm || isNaN(kmNum) || kmNum < 0) {
+    if (!editKm || Number.isNaN(kmNum) || kmNum < 0) {
       setEditError("Ingresá el kilometraje.");
+      return;
+    }
+
+    if (!editingVehicle) {
+      setEditError("Vehículo no encontrado.");
       return;
     }
 
     setEditError(null);
     updateVehicleMutation.mutate({
-      vehicleId: editingVehicle!.id,
+      vehicleId: editingVehicle.id,
       data: {
         brand: editBrand.trim(),
         model: editModel.trim(),
@@ -236,12 +218,8 @@ export default function VehiclesScreen() {
     return (
       <View style={styles.centered}>
         <AlertCircle size={40} color="#EF4444" style={styles.errorIcon} />
-        <Text style={styles.errorTitle}>
-          No se pudieron cargar los vehículos
-        </Text>
-        <Text style={styles.errorSub}>
-          {(error as Error)?.message ?? "Error desconocido"}
-        </Text>
+        <Text style={styles.errorTitle}>No se pudieron cargar los vehículos</Text>
+        <Text style={styles.errorSub}>{(error as Error)?.message ?? "Error desconocido"}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
           <Text style={styles.retryText}>Reintentar</Text>
         </TouchableOpacity>
@@ -254,11 +232,7 @@ export default function VehiclesScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Mis Vehículos</Text>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={handleAddVehicle}
-          activeOpacity={0.8}
-        >
+        <TouchableOpacity style={styles.addButton} onPress={handleAddVehicle} activeOpacity={0.8}>
           <Plus size={20} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
@@ -271,11 +245,7 @@ export default function VehiclesScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
           refreshControl={
-            <RefreshControl
-              refreshing={isRefetching}
-              onRefresh={refetch}
-              tintColor="#3B82F6"
-            />
+            <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#3B82F6" />
           }
           renderItem={({ item }) => (
             <VehicleCard
@@ -377,14 +347,14 @@ export default function VehiclesScreen() {
       <ConfirmationModal
         visible={confirmDelete}
         title="Eliminar vehículo"
-        message={`¿Estás seguro? Se eliminarán el vehículo y todo su historial (mantenimiento, tareas, diagnósticos y documentos). Esta acción no se puede deshacer.`}
+        message={
+          "¿Estás seguro? Se eliminarán el vehículo y todo su historial (mantenimiento, tareas, diagnósticos y documentos). Esta acción no se puede deshacer."
+        }
         confirmLabel="Eliminar"
         isDestructive
         isLoading={deleteVehicleMutation.isPending}
         onCancel={() => setConfirmDelete(false)}
-        onConfirm={() =>
-          editingVehicle && deleteVehicleMutation.mutate(editingVehicle.id)
-        }
+        onConfirm={() => editingVehicle && deleteVehicleMutation.mutate(editingVehicle.id)}
       />
     </View>
   );
@@ -422,9 +392,7 @@ function VehicleCard({
           </View>
           <View style={styles.kmRow}>
             <Gauge size={12} color="#64748B" />
-            <Text style={styles.kmText}>
-              {vehicle.currentKm.toLocaleString("es-AR")} km
-            </Text>
+            <Text style={styles.kmText}>{vehicle.currentKm.toLocaleString("es-AR")} km</Text>
           </View>
         </View>
       </View>
@@ -460,11 +428,7 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
       <Text style={styles.emptySub}>
         Agregá tu primer auto o moto para empezar a llevar su historial clínico.
       </Text>
-      <TouchableOpacity
-        style={styles.emptyButton}
-        onPress={onAdd}
-        activeOpacity={0.85}
-      >
+      <TouchableOpacity style={styles.emptyButton} onPress={onAdd} activeOpacity={0.85}>
         <Plus size={18} color="#FFFFFF" />
         <Text style={styles.emptyButtonText}>Agregar mi primer vehículo</Text>
       </TouchableOpacity>

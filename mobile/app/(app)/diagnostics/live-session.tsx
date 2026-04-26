@@ -1,65 +1,65 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import BatteryGaugeCard from "@/features/diagnostics/components/BatteryGaugeCard";
+import CoolantTempGaugeCard from "@/features/diagnostics/components/CoolantTempGaugeCard";
+import FuelGaugeCard from "@/features/diagnostics/components/FuelGaugeCard";
+import OBD2DebugModal from "@/features/diagnostics/components/OBD2DebugModal";
+import OilTempGaugeCard from "@/features/diagnostics/components/OilTempGaugeCard";
+import { useObdData } from "@/features/diagnostics/hooks/useObdData";
+import { mockOBD2Service } from "@/features/diagnostics/services/MockOBD2Service";
+import { obd2Service as realObd2Service } from "@/features/diagnostics/services/OBD2Service";
+import type { LiveTelemetryData } from "@/features/diagnostics/services/obd/types";
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  ActivityIndicator,
-  Modal,
-  Platform,
-  StatusBar,
-  TextInput,
-} from "react-native";
-import { useRouter } from "expo-router";
+  type DiagnosticNotes,
+  useDiagnosticStore,
+} from "@/features/diagnostics/stores/useDiagnosticStore";
+import { FUNCTION_NAMES, callFn } from "@/services/firebase/functions";
+import AppSelect, { type SelectOption } from "@/shared/components/AppSelect";
+import { describeDTC } from "@/shared/constants/dtcCodes";
+import { useAuthStore } from "@/shared/stores/useAuthStore";
+import { useVehicleStore } from "@/shared/stores/useVehicleStore";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "expo-router";
 import { Timestamp } from "firebase/firestore";
 import {
   Activity,
-  BluetoothOff,
-  Gauge,
-  Thermometer,
-  Zap,
-  Battery,
-  ScanLine,
-  Save,
   AlertTriangle,
-  CheckCircle,
-  Star,
-  X,
-  RefreshCw,
+  Battery,
+  BluetoothOff,
   Brain,
-  Terminal,
-  Fuel,
-  Wind,
-  Timer,
-  Route,
-  Cpu,
+  CheckCircle,
   ChevronDown,
   ChevronUp,
-  TrendingUp,
-  Droplets,
   CircleGauge,
+  Cpu,
+  Droplets,
+  Fuel,
+  Gauge,
   Info,
+  RefreshCw,
+  Route,
+  Save,
+  ScanLine,
+  Star,
+  Terminal,
+  Thermometer,
+  Timer,
+  TrendingUp,
+  Wind,
+  X,
+  Zap,
 } from "lucide-react-native";
-import { callFn, FUNCTION_NAMES } from "@/services/firebase/functions";
-import { useAuthStore } from "@/shared/stores/useAuthStore";
-import { useVehicleStore } from "@/shared/stores/useVehicleStore";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  useDiagnosticStore,
-  type DiagnosticNotes,
-} from "@/features/diagnostics/stores/useDiagnosticStore";
-import { useObdData } from "@/features/diagnostics/hooks/useObdData";
-import { obd2Service as realObd2Service } from "@/features/diagnostics/services/OBD2Service";
-import { mockOBD2Service } from "@/features/diagnostics/services/MockOBD2Service";
-import type { LiveTelemetryData } from "@/features/diagnostics/services/obd/types";
-import { describeDTC } from "@/shared/constants/dtcCodes";
-import AppSelect, { type SelectOption } from "@/shared/components/AppSelect";
-import OBD2DebugModal from "@/features/diagnostics/components/OBD2DebugModal";
-import FuelGaugeCard from "@/features/diagnostics/components/FuelGaugeCard";
-import CoolantTempGaugeCard from "@/features/diagnostics/components/CoolantTempGaugeCard";
-import OilTempGaugeCard from "@/features/diagnostics/components/OilTempGaugeCard";
-import BatteryGaugeCard from "@/features/diagnostics/components/BatteryGaugeCard";
+  ActivityIndicator,
+  Modal,
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 const IS_MOCK = process.env.EXPO_PUBLIC_OBD2_MOCK === "true";
 const obd2Service = IS_MOCK ? mockOBD2Service : realObd2Service;
@@ -130,9 +130,7 @@ export default function LiveSessionScreen() {
 
   useEffect(() => {
     if (!user) return;
-    callFn<Record<string, never>, UserProfileApiResponse>(
-      FUNCTION_NAMES.GET_USER_PROFILE,
-    )({})
+    callFn<Record<string, never>, UserProfileApiResponse>(FUNCTION_NAMES.GET_USER_PROFILE)({})
       .then((doc) => setSubscriptionTier(doc.subscriptionTier))
       .catch(() => {});
   }, [user]);
@@ -142,12 +140,9 @@ export default function LiveSessionScreen() {
 
   // ── Modal de guardado ─────────────────────────────────────────────────────
   const [isSaveModalVisible, setIsSaveModalVisible] = useState(false);
-  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(
-    null,
-  );
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
   const [showUpgrade, setShowUpgrade] = useState(false);
-  const [liveDataSnapshot, setLiveDataSnapshot] =
-    useState<LiveTelemetryData | null>(null);
+  const [liveDataSnapshot, setLiveDataSnapshot] = useState<LiveTelemetryData | null>(null);
 
   const vehicleOptions: SelectOption[] = [
     ...vehicles.map((v) => ({
@@ -159,9 +154,7 @@ export default function LiveSessionScreen() {
 
   function handleVehicleSelected(value: string) {
     setSelectedVehicleId(value);
-    setShowUpgrade(
-      value === EXTERNAL_VEHICLE_VALUE && subscriptionTier === "FREE",
-    );
+    setShowUpgrade(value === EXTERNAL_VEHICLE_VALUE && subscriptionTier === "FREE");
   }
 
   function openSaveModal() {
@@ -172,13 +165,11 @@ export default function LiveSessionScreen() {
   }
 
   // ── AI translation ─────────────────────────────────────────────────────────
-  const [aiTranslation, setAiTranslation] = useState("");
+  const [aiTranslation, _setAiTranslation] = useState("");
 
   const saveMutation = useMutation({
     mutationFn: (input: AddOdb2DiagnosticInput) =>
-      callFn<AddOdb2DiagnosticInput, { id: string }>(
-        FUNCTION_NAMES.ADD_ODB2_DIAGNOSTIC,
-      )(input),
+      callFn<AddOdb2DiagnosticInput, { id: string }>(FUNCTION_NAMES.ADD_ODB2_DIAGNOSTIC)(input),
     onSuccess: (_, input) => {
       queryClient.invalidateQueries({
         queryKey: ["odb2Diagnostics", input.vehicleId],
@@ -192,8 +183,7 @@ export default function LiveSessionScreen() {
   });
 
   function handleConfirmSave() {
-    if (!selectedVehicleId || selectedVehicleId === EXTERNAL_VEHICLE_VALUE)
-      return;
+    if (!selectedVehicleId || selectedVehicleId === EXTERNAL_VEHICLE_VALUE) return;
     const vehicle = vehicles.find((v) => v.id === selectedVehicleId);
     const now = Timestamp.fromDate(new Date());
 
@@ -238,9 +228,7 @@ export default function LiveSessionScreen() {
   }
 
   const canSave =
-    !!selectedVehicleId &&
-    selectedVehicleId !== EXTERNAL_VEHICLE_VALUE &&
-    !showUpgrade;
+    !!selectedVehicleId && selectedVehicleId !== EXTERNAL_VEHICLE_VALUE && !showUpgrade;
 
   // ── Desconexión: volver a la tab de diagnóstico ───────────────────────────
   const handleDisconnectAndGoBack = useCallback(() => {
@@ -302,17 +290,12 @@ export default function LiveSessionScreen() {
             value={liveData?.fuelLevel ?? null}
             unsupported={!supportedPids.has("2F")}
           />
-          <CoolantTempGaugeCard
-            value={liveData?.coolantTemp ?? null}
-          />
+          <CoolantTempGaugeCard value={liveData?.coolantTemp ?? null} />
           <OilTempGaugeCard
             value={liveData?.oilTemp ?? null}
             unsupported={!supportedPids.has("5C")}
           />
-          <BatteryGaugeCard
-            value={liveData?.batteryVoltage ?? null}
-            rpm={liveData?.rpm ?? null}
-          />
+          <BatteryGaugeCard value={liveData?.batteryVoltage ?? null} rpm={liveData?.rpm ?? null} />
         </ScrollView>
 
         {/* Telemetría en tiempo real */}
@@ -354,9 +337,11 @@ export default function LiveSessionScreen() {
           <Text style={styles.moreDataToggleText}>
             {showMoreData ? "Ocultar datos adicionales" : "Ver más datos"}
           </Text>
-          {showMoreData
-            ? <ChevronUp size={16} color="#64748B" />
-            : <ChevronDown size={16} color="#64748B" />}
+          {showMoreData ? (
+            <ChevronUp size={16} color="#64748B" />
+          ) : (
+            <ChevronDown size={16} color="#64748B" />
+          )}
         </TouchableOpacity>
 
         {showMoreData && (
@@ -388,7 +373,9 @@ export default function LiveSessionScreen() {
                     <TelemetryCard
                       icon={<TrendingUp size={20} color="#A3E635" />}
                       label="Avance Enc."
-                      value={liveData?.timingAdvance != null ? liveData.timingAdvance.toFixed(1) : "—"}
+                      value={
+                        liveData?.timingAdvance != null ? liveData.timingAdvance.toFixed(1) : "—"
+                      }
                       unit="°"
                       color="#A3E635"
                     />
@@ -414,7 +401,11 @@ export default function LiveSessionScreen() {
                   <TelemetryCard
                     icon={<Gauge size={20} color="#A78BFA" />}
                     label="Presión Colector"
-                    value={liveData?.intakeManifoldPressure != null ? `${liveData.intakeManifoldPressure}` : "—"}
+                    value={
+                      liveData?.intakeManifoldPressure != null
+                        ? `${liveData.intakeManifoldPressure}`
+                        : "—"
+                    }
                     unit="kPa"
                     color="#A78BFA"
                   />
@@ -423,7 +414,11 @@ export default function LiveSessionScreen() {
                   <TelemetryCard
                     icon={<CircleGauge size={20} color="#FBBF24" />}
                     label="Acelerador"
-                    value={liveData?.throttlePosition != null ? liveData.throttlePosition.toFixed(0) : "—"}
+                    value={
+                      liveData?.throttlePosition != null
+                        ? liveData.throttlePosition.toFixed(0)
+                        : "—"
+                    }
                     unit="%"
                     color="#FBBF24"
                   />
@@ -432,7 +427,11 @@ export default function LiveSessionScreen() {
                   <TelemetryCard
                     icon={<Cpu size={20} color="#2DD4BF" />}
                     label="Voltaje ECU"
-                    value={liveData?.controlModuleVoltage != null ? liveData.controlModuleVoltage.toFixed(2) : "—"}
+                    value={
+                      liveData?.controlModuleVoltage != null
+                        ? liveData.controlModuleVoltage.toFixed(2)
+                        : "—"
+                    }
                     unit="V"
                     color="#2DD4BF"
                   />
@@ -457,9 +456,11 @@ export default function LiveSessionScreen() {
                   <TelemetryCard
                     icon={<Timer size={20} color="#38BDF8" />}
                     label="Motor Encendido"
-                    value={liveData?.runtimeSinceStart != null
-                      ? `${Math.floor(liveData.runtimeSinceStart / 60)}:${String(liveData.runtimeSinceStart % 60).padStart(2, "0")}`
-                      : "—"}
+                    value={
+                      liveData?.runtimeSinceStart != null
+                        ? `${Math.floor(liveData.runtimeSinceStart / 60)}:${String(liveData.runtimeSinceStart % 60).padStart(2, "0")}`
+                        : "—"
+                    }
                     unit="min:seg"
                     color="#38BDF8"
                   />
@@ -468,9 +469,11 @@ export default function LiveSessionScreen() {
                   <TelemetryCard
                     icon={<Route size={20} color="#818CF8" />}
                     label="Km s/ Reset"
-                    value={liveData?.distanceSinceCodesCleared != null
-                      ? liveData.distanceSinceCodesCleared.toLocaleString("es-AR")
-                      : "—"}
+                    value={
+                      liveData?.distanceSinceCodesCleared != null
+                        ? liveData.distanceSinceCodesCleared.toLocaleString("es-AR")
+                        : "—"
+                    }
                     unit="km"
                     color="#818CF8"
                   />
@@ -492,11 +495,7 @@ export default function LiveSessionScreen() {
         {/* Sección DTC */}
         <View style={styles.dtcSection}>
           {!scanCompleted && status === "connected" && (
-            <TouchableOpacity
-              style={styles.scanButton}
-              onPress={handleScan}
-              activeOpacity={0.85}
-            >
+            <TouchableOpacity style={styles.scanButton} onPress={handleScan} activeOpacity={0.85}>
               <ScanLine size={18} color="#FFFFFF" />
               <Text style={styles.scanButtonText}>Escanear errores (DTC)</Text>
             </TouchableOpacity>
@@ -505,9 +504,7 @@ export default function LiveSessionScreen() {
           {status === "scanning" && (
             <View style={styles.scanningBox}>
               <ActivityIndicator size="small" color="#3B82F6" />
-              <Text style={styles.scanningText}>
-                Escaneando memoria de errores...
-              </Text>
+              <Text style={styles.scanningText}>Escaneando memoria de errores...</Text>
             </View>
           )}
 
@@ -517,9 +514,7 @@ export default function LiveSessionScreen() {
                 <View style={styles.allClearBox}>
                   <CheckCircle size={28} color="#34D399" />
                   <Text style={styles.allClearTitle}>Sin errores detectados</Text>
-                  <Text style={styles.allClearSub}>
-                    Tu vehículo no reportó códigos de falla.
-                  </Text>
+                  <Text style={styles.allClearSub}>Tu vehículo no reportó códigos de falla.</Text>
                 </View>
               ) : (
                 <>
@@ -543,9 +538,7 @@ export default function LiveSessionScreen() {
                 activeOpacity={0.85}
               >
                 <RefreshCw size={15} color="#3B82F6" />
-                <Text style={styles.rescanButtonText}>
-                  Escanear errores de nuevo
-                </Text>
+                <Text style={styles.rescanButtonText}>Escanear errores de nuevo</Text>
               </TouchableOpacity>
 
               {/* AI analysis */}
@@ -570,9 +563,7 @@ export default function LiveSessionScreen() {
                 activeOpacity={0.85}
               >
                 <Brain size={16} color="#A855F7" />
-                <Text style={styles.aiButtonText}>
-                  Analizar resultados con IA
-                </Text>
+                <Text style={styles.aiButtonText}>Analizar resultados con IA</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -586,9 +577,7 @@ export default function LiveSessionScreen() {
           activeOpacity={0.85}
         >
           <Save size={18} color="#FFFFFF" />
-          <Text style={styles.primaryButtonText}>
-            Grabar el análisis al historial
-          </Text>
+          <Text style={styles.primaryButtonText}>Grabar el análisis al historial</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -620,9 +609,7 @@ export default function LiveSessionScreen() {
         preview={
           isSaveModalVisible
             ? {
-                kmAtService:
-                  vehicles.find((v) => v.id === selectedVehicleId)
-                    ?.currentKm ?? 0,
+                kmAtService: vehicles.find((v) => v.id === selectedVehicleId)?.currentKm ?? 0,
                 dtcs: scanCompleted ? foundDTCs : null,
                 telemetry: liveDataSnapshot ?? null,
                 iaTranslation: aiTranslation,
@@ -634,10 +621,7 @@ export default function LiveSessionScreen() {
       />
 
       {/* ── Modal: Debug OBD2 ─────────────────────────────────────────────── */}
-      <OBD2DebugModal
-        visible={showDebugModal}
-        onClose={() => setShowDebugModal(false)}
-      />
+      <OBD2DebugModal visible={showDebugModal} onClose={() => setShowDebugModal(false)} />
     </View>
   );
 }
@@ -674,9 +658,7 @@ function MileageSection({
               <Text style={mlStyles.odometerValue}>
                 {Math.floor(odometer).toLocaleString("es-AR")} km
               </Text>
-              <Text style={mlStyles.odometerLabel}>
-                Lectura directa de la ECU del vehículo
-              </Text>
+              <Text style={mlStyles.odometerLabel}>Lectura directa de la ECU del vehículo</Text>
             </View>
           </View>
         </View>
@@ -685,17 +667,13 @@ function MileageSection({
       {distCodes != null && (
         <View style={mlStyles.indirectRow}>
           <Text style={mlStyles.indirectLabel}>Km desde último reset DTC</Text>
-          <Text style={mlStyles.indirectValue}>
-            {distCodes.toLocaleString("es-AR")} km
-          </Text>
+          <Text style={mlStyles.indirectValue}>{distCodes.toLocaleString("es-AR")} km</Text>
         </View>
       )}
       {distMIL != null && distMIL > 0 && (
         <View style={mlStyles.indirectRow}>
           <Text style={mlStyles.indirectLabel}>Km con Check Engine</Text>
-          <Text style={mlStyles.indirectValue}>
-            {distMIL.toLocaleString("es-AR")} km
-          </Text>
+          <Text style={mlStyles.indirectValue}>{distMIL.toLocaleString("es-AR")} km</Text>
         </View>
       )}
 
@@ -703,9 +681,8 @@ function MileageSection({
         <View style={mlStyles.noteRow}>
           <Info size={14} color="#475569" />
           <Text style={mlStyles.noteText}>
-            El odómetro digital (PID A6) no está disponible en este vehículo.
-            Los indicadores mostrados pueden ayudar a evaluar la consistencia
-            del kilometraje.
+            El odómetro digital (PID A6) no está disponible en este vehículo. Los indicadores
+            mostrados pueden ayudar a evaluar la consistencia del kilometraje.
           </Text>
         </View>
       )}
@@ -732,11 +709,7 @@ function TelemetryCard({
 }) {
   return (
     <View style={[styles.telemetryCard, { borderColor: `${color}30` }]}>
-      <View
-        style={[styles.telemetryIconWrap, { backgroundColor: `${color}18` }]}
-      >
-        {icon}
-      </View>
+      <View style={[styles.telemetryIconWrap, { backgroundColor: `${color}18` }]}>{icon}</View>
       <Text style={styles.telemetryLabel}>{label}</Text>
       <Text style={[styles.telemetryValue, { color }]}>{value}</Text>
       <Text style={styles.telemetryUnit}>{unit}</Text>
@@ -797,35 +770,20 @@ function SaveModal({
   onSave,
   onClose,
 }: SaveModalProps) {
-  const statusBarHeight =
-    Platform.OS === "android" ? (StatusBar.currentHeight ?? 24) : 50;
+  const statusBarHeight = Platform.OS === "android" ? (StatusBar.currentHeight ?? 24) : 50;
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      onRequestClose={onClose}
-      statusBarTranslucent
-    >
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose} statusBarTranslucent>
       <View style={[modalStyles.container, { paddingTop: statusBarHeight }]}>
         <View style={modalStyles.header}>
           <Text style={modalStyles.title}>Grabar análisis</Text>
-          <TouchableOpacity
-            style={modalStyles.closeButton}
-            onPress={onClose}
-            activeOpacity={0.8}
-          >
+          <TouchableOpacity style={modalStyles.closeButton} onPress={onClose} activeOpacity={0.8}>
             <X size={18} color="#94A3B8" />
           </TouchableOpacity>
         </View>
 
-        <ScrollView
-          contentContainerStyle={modalStyles.body}
-          keyboardShouldPersistTaps="handled"
-        >
-          <Text style={modalStyles.label}>
-            ¿A qué vehículo corresponde este análisis?
-          </Text>
+        <ScrollView contentContainerStyle={modalStyles.body} keyboardShouldPersistTaps="handled">
+          <Text style={modalStyles.label}>¿A qué vehículo corresponde este análisis?</Text>
           <AppSelect
             placeholder="Seleccioná un vehículo..."
             value={selectedVehicleId}
@@ -834,9 +792,7 @@ function SaveModal({
             searchPlaceholder="Buscar vehículo..."
           />
           {showUpgrade && <UpgradePrompt />}
-          {preview && !showUpgrade && (
-            <DiagnosticDataPreview preview={preview} />
-          )}
+          {preview && !showUpgrade && <DiagnosticDataPreview preview={preview} />}
           {saveError && (
             <View style={modalStyles.errorBox}>
               <Text style={modalStyles.errorText}>{saveError}</Text>
@@ -859,9 +815,7 @@ function SaveModal({
             ) : (
               <>
                 <Save size={16} color="#FFFFFF" />
-                <Text style={modalStyles.saveButtonText}>
-                  Guardar en historial
-                </Text>
+                <Text style={modalStyles.saveButtonText}>Guardar en historial</Text>
               </>
             )}
           </TouchableOpacity>
@@ -906,9 +860,15 @@ function DiagnosticDataPreview({ preview }: { preview: DiagnosticPreview }) {
                 preview.telemetry.rpm != null ? `${preview.telemetry.rpm} rpm` : null,
                 preview.telemetry.speed != null ? `${preview.telemetry.speed} km/h` : null,
                 preview.telemetry.coolantTemp != null ? `${preview.telemetry.coolantTemp}°C` : null,
-                preview.telemetry.batteryVoltage != null ? `${preview.telemetry.batteryVoltage.toFixed(1)}V` : null,
-                preview.telemetry.engineLoad != null ? `Carga ${preview.telemetry.engineLoad.toFixed(0)}%` : null,
-                preview.telemetry.fuelLevel != null ? `Comb. ${preview.telemetry.fuelLevel.toFixed(0)}%` : null,
+                preview.telemetry.batteryVoltage != null
+                  ? `${preview.telemetry.batteryVoltage.toFixed(1)}V`
+                  : null,
+                preview.telemetry.engineLoad != null
+                  ? `Carga ${preview.telemetry.engineLoad.toFixed(0)}%`
+                  : null,
+                preview.telemetry.fuelLevel != null
+                  ? `Comb. ${preview.telemetry.fuelLevel.toFixed(0)}%`
+                  : null,
               ]
                 .filter(Boolean)
                 .join(" · ") || "Sin datos"
@@ -919,10 +879,7 @@ function DiagnosticDataPreview({ preview }: { preview: DiagnosticPreview }) {
       <View style={modalStyles.previewRow}>
         <Text style={modalStyles.previewLabel}>Traducción IA</Text>
         <Text
-          style={[
-            modalStyles.previewValue,
-            !preview.iaTranslation && modalStyles.previewEmpty,
-          ]}
+          style={[modalStyles.previewValue, !preview.iaTranslation && modalStyles.previewEmpty]}
         >
           {preview.iaTranslation || "(vacío)"}
         </Text>
@@ -943,8 +900,7 @@ function UpgradePrompt() {
         <Text style={styles.upgradeTitle}>Función Premium</Text>
       </View>
       <Text style={styles.upgradeSub}>
-        Guardar diagnósticos de{" "}
-        <Text style={styles.upgradeHighlight}>vehículos externos</Text> está
+        Guardar diagnósticos de <Text style={styles.upgradeHighlight}>vehículos externos</Text> está
         disponible solo en el plan Premium.
       </Text>
       <TouchableOpacity style={styles.upgradeButton} activeOpacity={0.85}>

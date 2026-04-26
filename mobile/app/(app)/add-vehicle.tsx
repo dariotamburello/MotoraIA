@@ -1,37 +1,29 @@
-import { useState, useMemo } from "react";
+import { FUNCTION_NAMES, callFn } from "@/services/firebase/functions";
+import { fetchVehicleByPatente } from "@/services/vehiclePatente";
+import AppInput from "@/shared/components/AppInput";
+import AppSelect from "@/shared/components/AppSelect";
+import { useToast } from "@/shared/components/ToastProvider";
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
+  getBodyTypeForVehicle,
+  getBrandOptions,
+  getModelOptions,
+  getYearOptions,
+} from "@/shared/constants/vehiclesData";
+import { type VehicleSummary, useVehicleStore } from "@/shared/stores/useVehicleStore";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "expo-router";
+import { ArrowLeft, Car, Gauge, Hash, Search, Star, Zap } from "lucide-react-native";
+import { useMemo, useState } from "react";
+import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { useRouter } from "expo-router";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  ArrowLeft,
-  Car,
-  Hash,
-  Gauge,
-  Zap,
-  Star,
-  Search,
-} from "lucide-react-native";
-import { callFn, FUNCTION_NAMES } from "@/services/firebase/functions";
-import { useVehicleStore, type VehicleSummary } from "@/shared/stores/useVehicleStore";
-import AppInput from "@/shared/components/AppInput";
-import AppSelect from "@/shared/components/AppSelect";
-import {
-  getBrandOptions,
-  getModelOptions,
-  getYearOptions,
-  getBodyTypeForVehicle,
-} from "@/shared/constants/vehiclesData";
-import { fetchVehicleByPatente } from "@/services/vehiclePatente";
-import { useToast } from "@/shared/components/ToastProvider";
 
 // ---------------------------------------------------------------------------
 // Tipos
@@ -104,13 +96,10 @@ export default function AddVehicleScreen() {
   // brandOptions nunca cambia (dato estático), modelOptions y yearOptions
   // solo se recalculan cuando cambia su dependencia upstream.
   const brandOptions = useMemo(() => getBrandOptions(), []);
-  const modelOptions = useMemo(
-    () => (brand ? getModelOptions(brand) : []),
-    [brand]
-  );
+  const modelOptions = useMemo(() => (brand ? getModelOptions(brand) : []), [brand]);
   const yearOptions = useMemo(
     () => (brand && model ? getYearOptions(brand, model) : []),
-    [brand, model]
+    [brand, model],
   );
 
   function handleBrandChange(v: string) {
@@ -144,7 +133,7 @@ export default function AddVehicleScreen() {
       setYear(null);
       showToast(
         "No se pudieron obtener los datos de la patente. Por favor, completá los campos manualmente.",
-        "error"
+        "error",
       );
     } finally {
       setIsFetchingPatente(false);
@@ -154,12 +143,24 @@ export default function AddVehicleScreen() {
   // ── Validación ────────────────────────────────────────────────────────────
   function validate(): boolean {
     let valid = true;
-    if (!brand) { setErrorBrand("Seleccioná la marca."); valid = false; } else setErrorBrand(null);
-    if (!model) { setErrorModel("Seleccioná el modelo."); valid = false; } else setErrorModel(null);
-    if (!year) { setErrorYear("Seleccioná el año."); valid = false; } else setErrorYear(null);
-    if (!licensePlate.trim()) { setErrorPlate("Ingresá la patente."); valid = false; } else setErrorPlate(null);
-    const kmNum = parseInt(currentKm, 10);
-    if (currentKm === "" || isNaN(kmNum) || kmNum < 0) {
+    if (!brand) {
+      setErrorBrand("Seleccioná la marca.");
+      valid = false;
+    } else setErrorBrand(null);
+    if (!model) {
+      setErrorModel("Seleccioná el modelo.");
+      valid = false;
+    } else setErrorModel(null);
+    if (!year) {
+      setErrorYear("Seleccioná el año.");
+      valid = false;
+    } else setErrorYear(null);
+    if (!licensePlate.trim()) {
+      setErrorPlate("Ingresá la patente.");
+      valid = false;
+    } else setErrorPlate(null);
+    const kmNum = Number.parseInt(currentKm, 10);
+    if (currentKm === "" || Number.isNaN(kmNum) || kmNum < 0) {
       setErrorKm("Ingresá el kilometraje actual (puede ser 0).");
       valid = false;
     } else {
@@ -180,19 +181,13 @@ export default function AddVehicleScreen() {
     },
 
     onError: (e: unknown) => {
-      const code =
-        e && typeof e === "object" && "code" in e
-          ? (e as { code: string }).code
-          : "";
+      const code = e && typeof e === "object" && "code" in e ? (e as { code: string }).code : "";
 
       if (code === "functions/resource-exhausted") {
         setShowUpgradePrompt(true);
       } else {
         setShowUpgradePrompt(false);
-        showToast(
-          e instanceof Error ? e.message : "Ocurrió un error. Intentá de nuevo.",
-          "error"
-        );
+        showToast(e instanceof Error ? e.message : "Ocurrió un error. Intentá de nuevo.", "error");
       }
     },
   });
@@ -207,9 +202,9 @@ export default function AddVehicleScreen() {
     mutate({
       brand: brand!,
       model: model!,
-      year: parseInt(year!, 10),
+      year: Number.parseInt(year!, 10),
       licensePlate: licensePlate.trim().toUpperCase(),
-      currentKm: parseInt(currentKm, 10),
+      currentKm: Number.parseInt(currentKm, 10),
       bodyType: getBodyTypeForVehicle(brand!, model!) ?? "sedan",
     });
   }
@@ -226,10 +221,7 @@ export default function AddVehicleScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <ArrowLeft size={22} color="#CBD5E1" />
           </TouchableOpacity>
         </View>
@@ -240,9 +232,7 @@ export default function AddVehicleScreen() {
             <Car size={28} color="#3B82F6" strokeWidth={1.5} />
           </View>
           <Text style={styles.title}>Agregar vehículo</Text>
-          <Text style={styles.subtitle}>
-            Completá los datos para registrar tu auto o moto.
-          </Text>
+          <Text style={styles.subtitle}>Completá los datos para registrar tu auto o moto.</Text>
         </View>
 
         {/* Form */}
@@ -257,7 +247,10 @@ export default function AddVehicleScreen() {
                 autoCapitalize="characters"
                 maxLength={7}
                 value={licensePlate}
-                onChangeText={(v) => { setLicensePlate(v); setErrorPlate(null); }}
+                onChangeText={(v) => {
+                  setLicensePlate(v);
+                  setErrorPlate(null);
+                }}
                 editable={!isPending && !isFetchingPatente}
                 containerStyle={styles.patenteInput}
                 error={errorPlate}
@@ -312,7 +305,10 @@ export default function AddVehicleScreen() {
             label="Año"
             placeholder={model ? "Seleccioná el año" : "Primero elegí un modelo"}
             value={year}
-            onChange={(v) => { setYear(v); setErrorYear(null); }}
+            onChange={(v) => {
+              setYear(v);
+              setErrorYear(null);
+            }}
             options={yearOptions}
             disabled={!model || isPending || isFetchingPatente}
             searchPlaceholder="Buscar año..."
@@ -326,7 +322,10 @@ export default function AddVehicleScreen() {
             icon={<Gauge size={18} color="#64748B" />}
             keyboardType="number-pad"
             value={currentKm}
-            onChangeText={(v) => { setCurrentKm(v); setErrorKm(null); }}
+            onChangeText={(v) => {
+              setCurrentKm(v);
+              setErrorKm(null);
+            }}
             editable={!isPending}
             error={errorKm}
           />
@@ -367,10 +366,10 @@ function UpgradePrompt() {
         <Text style={styles.upgradeTitle}>Límite del plan Free alcanzado</Text>
       </View>
       <Text style={styles.upgradeSub}>
-        Tu plan gratuito permite hasta{" "}
-        <Text style={styles.upgradeHighlight}>2 vehículos</Text>.{"\n"}
-        Pasate al plan Premium para registrar vehículos ilimitados y acceder a
-        diagnósticos IA avanzados.
+        Tu plan gratuito permite hasta <Text style={styles.upgradeHighlight}>2 vehículos</Text>.
+        {"\n"}
+        Pasate al plan Premium para registrar vehículos ilimitados y acceder a diagnósticos IA
+        avanzados.
       </Text>
       <TouchableOpacity style={styles.upgradeButton} activeOpacity={0.85}>
         <Text style={styles.upgradeButtonText}>Ver planes Premium →</Text>

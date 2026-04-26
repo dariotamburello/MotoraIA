@@ -1,13 +1,13 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { initializeApp, getApps, getApp } from "firebase/app";
+import { getApp, getApps, initializeApp } from "firebase/app";
 import {
-  initializeAuth,
-  inMemoryPersistence,
-  connectAuthEmulator,
   type Persistence,
+  connectAuthEmulator,
+  inMemoryPersistence,
+  initializeAuth,
 } from "firebase/auth";
-import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
-import { getFunctions, connectFunctionsEmulator } from "firebase/functions";
+import { connectFirestoreEmulator, getFirestore } from "firebase/firestore";
+import { connectFunctionsEmulator, getFunctions } from "firebase/functions";
 import { Platform } from "react-native";
 
 // ---------------------------------------------------------------------------
@@ -17,12 +17,9 @@ import { Platform } from "react-native";
 // ---------------------------------------------------------------------------
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY ?? "fake-api-key",
-  authDomain:
-    process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN ?? "motoraia.firebaseapp.com",
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN ?? "motoraia.firebaseapp.com",
   projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID ?? "motoraia",
-  storageBucket:
-    process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET ??
-    "motoraia.firebasestorage.app",
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET ?? "motoraia.firebasestorage.app",
   messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ?? "",
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID ?? "",
 };
@@ -74,10 +71,14 @@ class AsyncStoragePersistenceImpl {
 }
 
 // En React Native usamos AsyncStorage; en web (testing/CI) caemos a inMemory.
-const persistence =
-  typeof navigator !== "undefined" && navigator.product === "ReactNative"
-    ? (AsyncStoragePersistenceImpl as unknown as Persistence)
-    : inMemoryPersistence;
+// `navigator.product === "ReactNative"` es el sniff oficial de RN, pero TS web-DOM lib
+// no incluye esta property — accedemos como Record<string, unknown>.
+const isReactNative =
+  typeof navigator !== "undefined" &&
+  (navigator as unknown as Record<string, unknown>).product === "ReactNative";
+const persistence = isReactNative
+  ? (AsyncStoragePersistenceImpl as unknown as Persistence)
+  : inMemoryPersistence;
 
 export const auth = initializeAuth(app, { persistence });
 

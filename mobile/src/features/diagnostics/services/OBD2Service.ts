@@ -14,47 +14,54 @@
  */
 
 import { Platform } from "react-native";
-import { BluetoothClassicStrategy } from "./obd/BluetoothClassicStrategy";
 import { BleStrategy } from "./obd/BleStrategy";
+import { BluetoothClassicStrategy } from "./obd/BluetoothClassicStrategy";
 import { CommandQueue } from "./obd/CommandQueue";
+import type { IBluetoothStrategy } from "./obd/IBluetoothStrategy";
 import {
-  parseRPM,
-  parseSpeed,
-  parseCoolantTemp,
-  parseBatteryVoltage,
-  parseDTCs,
   parseAdapterInfo,
-  parseEngineLoad,
-  parseThrottlePosition,
-  parseFuelLevel,
-  parseIntakeAirTemp,
-  parseControlModuleVoltage,
-  parseMafAirFlow,
-  parseIntakeManifoldPressure,
-  parseFuelRate,
-  parseTimingAdvance,
-  parseRuntimeSinceStart,
-  parseDistanceSinceCodesCleared,
   parseAmbientAirTemp,
-  parseOilTemp,
+  parseBatteryVoltage,
+  parseControlModuleVoltage,
+  parseCoolantTemp,
+  parseDTCs,
+  parseDistanceSinceCodesCleared,
   parseDistanceWithMIL,
+  parseEngineLoad,
+  parseFuelLevel,
+  parseFuelRate,
   parseFuelType,
+  parseIntakeAirTemp,
+  parseIntakeManifoldPressure,
+  parseMafAirFlow,
   parseOdometer,
+  parseOilTemp,
+  parseRPM,
+  parseRuntimeSinceStart,
+  parseSpeed,
   parseSupportedPids,
+  parseThrottlePosition,
+  parseTimingAdvance,
 } from "./obd/OBD2Parser";
 import { obdLog } from "./obd/obd2Logger";
-import type { IBluetoothStrategy } from "./obd/IBluetoothStrategy";
 import type {
+  ConnectProgressCallback,
+  FuelType,
+  LiveTelemetryData,
+  OBD2DeviceInfo,
+  PairedDevice,
+  PermissionResult,
+} from "./obd/types";
+
+// Re-exportar tipos para que el hook y la pantalla no importen desde subcarpetas
+export type {
   LiveTelemetryData,
   OBD2DeviceInfo,
   PermissionResult,
   PairedDevice,
   FuelType,
   ConnectProgressCallback,
-} from "./obd/types";
-
-// Re-exportar tipos para que el hook y la pantalla no importen desde subcarpetas
-export type { LiveTelemetryData, OBD2DeviceInfo, PermissionResult, PairedDevice, FuelType, ConnectProgressCallback };
+};
 
 // ---------------------------------------------------------------------------
 // Constantes
@@ -100,9 +107,11 @@ interface PidDef {
 }
 
 /** PIDs que siempre se ejecutan (AT commands, no requieren discovery). */
-const AT_COMMANDS: Array<{ cmd: string; key: keyof LiveTelemetryData; parse: (raw: string) => number | null }> = [
-  { cmd: "AT RV", key: "batteryVoltage", parse: parseBatteryVoltage },
-];
+const AT_COMMANDS: Array<{
+  cmd: string;
+  key: keyof LiveTelemetryData;
+  parse: (raw: string) => number | null;
+}> = [{ cmd: "AT RV", key: "batteryVoltage", parse: parseBatteryVoltage }];
 
 const TIER_FAST: PidDef[] = [
   { pid: "010C", supportKey: "0C", parse: parseRPM, key: "rpm" },
@@ -115,7 +124,12 @@ const TIER_FAST: PidDef[] = [
 const TIER_MEDIUM: PidDef[] = [
   { pid: "010F", supportKey: "0F", parse: parseIntakeAirTemp, key: "intakeAirTemp" },
   { pid: "0110", supportKey: "10", parse: parseMafAirFlow, key: "mafAirFlow" },
-  { pid: "010B", supportKey: "0B", parse: parseIntakeManifoldPressure, key: "intakeManifoldPressure" },
+  {
+    pid: "010B",
+    supportKey: "0B",
+    parse: parseIntakeManifoldPressure,
+    key: "intakeManifoldPressure",
+  },
   { pid: "015E", supportKey: "5E", parse: parseFuelRate, key: "fuelRate" },
   { pid: "010E", supportKey: "0E", parse: parseTimingAdvance, key: "timingAdvance" },
 ];
@@ -124,7 +138,12 @@ const TIER_SLOW: PidDef[] = [
   { pid: "012F", supportKey: "2F", parse: parseFuelLevel, key: "fuelLevel" },
   { pid: "0146", supportKey: "46", parse: parseAmbientAirTemp, key: "ambientAirTemp" },
   { pid: "011F", supportKey: "1F", parse: parseRuntimeSinceStart, key: "runtimeSinceStart" },
-  { pid: "0131", supportKey: "31", parse: parseDistanceSinceCodesCleared, key: "distanceSinceCodesCleared" },
+  {
+    pid: "0131",
+    supportKey: "31",
+    parse: parseDistanceSinceCodesCleared,
+    key: "distanceSinceCodesCleared",
+  },
   { pid: "0121", supportKey: "21", parse: parseDistanceWithMIL, key: "distanceWithMIL" },
   { pid: "0142", supportKey: "42", parse: parseControlModuleVoltage, key: "controlModuleVoltage" },
   { pid: "015C", supportKey: "5C", parse: parseOilTemp, key: "oilTemp" },
@@ -167,12 +186,25 @@ class OBD2Service {
    * cuando solo se actualizan ciertos tiers en un tick dado.
    */
   private lastTelemetry: LiveTelemetryData = {
-    rpm: null, speed: null, coolantTemp: null, batteryVoltage: null,
-    engineLoad: null, throttlePosition: null, intakeAirTemp: null,
-    mafAirFlow: null, intakeManifoldPressure: null, fuelRate: null,
-    timingAdvance: null, fuelLevel: null, ambientAirTemp: null,
-    runtimeSinceStart: null, distanceSinceCodesCleared: null,
-    distanceWithMIL: null, controlModuleVoltage: null, oilTemp: null, fuelConsumption: null,
+    rpm: null,
+    speed: null,
+    coolantTemp: null,
+    batteryVoltage: null,
+    engineLoad: null,
+    throttlePosition: null,
+    intakeAirTemp: null,
+    mafAirFlow: null,
+    intakeManifoldPressure: null,
+    fuelRate: null,
+    timingAdvance: null,
+    fuelLevel: null,
+    ambientAirTemp: null,
+    runtimeSinceStart: null,
+    distanceSinceCodesCleared: null,
+    distanceWithMIL: null,
+    controlModuleVoltage: null,
+    oilTemp: null,
+    fuelConsumption: null,
   };
 
   /** PIDs que se listan como soportados pero fallan consecutivamente. */
@@ -183,9 +215,8 @@ class OBD2Service {
 
   constructor(strategy?: IBluetoothStrategy) {
     // Inyección de dependencia opcional (útil para tests)
-    this.strategy = strategy ?? (Platform.OS === "ios"
-      ? new BleStrategy()
-      : new BluetoothClassicStrategy());
+    this.strategy =
+      strategy ?? (Platform.OS === "ios" ? new BleStrategy() : new BluetoothClassicStrategy());
   }
 
   // ── Getters públicos ─────────────────────────────────────────────────────
@@ -280,9 +311,7 @@ class OBD2Service {
     const adapterId = parseAdapterInfo(atiRaw);
 
     const hasHighQuality = adapterId.includes(HIGH_QUALITY_SIGNATURE);
-    const hasLowQualitySig = LOW_QUALITY_SIGNATURES.some((sig) =>
-      adapterId.includes(sig),
-    );
+    const hasLowQualitySig = LOW_QUALITY_SIGNATURES.some((sig) => adapterId.includes(sig));
     const isLowQualityAdapter = !hasHighQuality || hasLowQualitySig;
 
     obdLog("INFO", `Adaptador: "${adapterId}" | lowQuality=${isLowQualityAdapter}`);
@@ -410,7 +439,10 @@ class OBD2Service {
             const strikes = (this.noDataStrikes.get(def.supportKey) ?? 0) + 1;
             this.noDataStrikes.set(def.supportKey, strikes);
             if (strikes === OBD2Service.NODATA_STRIKE_LIMIT) {
-              obdLog("INFO", `PID ${def.supportKey} descartado tras ${strikes} NODATA consecutivos`);
+              obdLog(
+                "INFO",
+                `PID ${def.supportKey} descartado tras ${strikes} NODATA consecutivos`,
+              );
             }
           } else {
             // Reset strikes si obtuvimos dato
@@ -544,12 +576,25 @@ class OBD2Service {
     this._fuelType = "unknown";
     this._odometer = null;
     this.lastTelemetry = {
-      rpm: null, speed: null, coolantTemp: null, batteryVoltage: null,
-      engineLoad: null, throttlePosition: null, intakeAirTemp: null,
-      mafAirFlow: null, intakeManifoldPressure: null, fuelRate: null,
-      timingAdvance: null, fuelLevel: null, ambientAirTemp: null,
-      runtimeSinceStart: null, distanceSinceCodesCleared: null,
-      distanceWithMIL: null, controlModuleVoltage: null, oilTemp: null, fuelConsumption: null,
+      rpm: null,
+      speed: null,
+      coolantTemp: null,
+      batteryVoltage: null,
+      engineLoad: null,
+      throttlePosition: null,
+      intakeAirTemp: null,
+      mafAirFlow: null,
+      intakeManifoldPressure: null,
+      fuelRate: null,
+      timingAdvance: null,
+      fuelLevel: null,
+      ambientAirTemp: null,
+      runtimeSinceStart: null,
+      distanceSinceCodesCleared: null,
+      distanceWithMIL: null,
+      controlModuleVoltage: null,
+      oilTemp: null,
+      fuelConsumption: null,
     };
     this.queue.clear();
     this.strategy.disconnect();
@@ -559,9 +604,7 @@ class OBD2Service {
 
   /** Encola un comando AT/PID y espera su respuesta. */
   private exec(command: string, timeoutMs?: number): Promise<string> {
-    return this.queue.enqueue(() =>
-      this.strategy.sendCommand(command, timeoutMs),
-    );
+    return this.queue.enqueue(() => this.strategy.sendCommand(command, timeoutMs));
   }
 
   /**
@@ -575,13 +618,16 @@ class OBD2Service {
     const raw = await this.exec(pid, timeoutMs);
 
     // Construir eco esperado: modo 01 → respuesta 41, modo 02 → 42, etc.
-    const mode = parseInt(pid.slice(0, 2), 16);
+    const mode = Number.parseInt(pid.slice(0, 2), 16);
     const expectedEcho = (mode + 0x40).toString(16).toUpperCase() + pid.slice(2).toUpperCase();
 
     const cleaned = raw.replace(/[\r\n\s>]/g, "").toUpperCase();
     if (!cleaned.includes(expectedEcho)) {
       if (cleaned !== "" && cleaned !== "NODATA") {
-        obdLog("INFO", `Respuesta desfasada: esperaba ${expectedEcho}, recibió "${raw.replace(/[\r\n]+/g, "").trim()}"`);
+        obdLog(
+          "INFO",
+          `Respuesta desfasada: esperaba ${expectedEcho}, recibió "${raw.replace(/[\r\n]+/g, "").trim()}"`,
+        );
       }
       return "NODATA";
     }

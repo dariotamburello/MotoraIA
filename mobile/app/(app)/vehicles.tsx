@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 /**
  * VehiclesScreen — placeholder para Fase 4.
@@ -14,7 +14,12 @@ export default function VehiclesScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#0F172A" },
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#0F172A",
+  },
   title: { fontSize: 28, fontWeight: "bold", color: "#F1F5F9", marginBottom: 12 },
   info: { fontSize: 14, color: "#94A3B8" },
 });

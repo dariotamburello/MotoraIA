@@ -1,15 +1,15 @@
+import { Trash2, X } from "lucide-react-native";
 import {
-  Modal,
-  View,
-  Text,
-  TouchableOpacity,
   ActivityIndicator,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { X, Trash2 } from "lucide-react-native";
 
 interface EditFormModalProps {
   visible: boolean;
@@ -51,11 +51,7 @@ export default function EditFormModal({
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         {/* Backdrop — toca para cerrar */}
-        <TouchableOpacity
-          style={styles.backdrop}
-          activeOpacity={1}
-          onPress={onClose}
-        />
+        <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
 
         {/* Card anclada al fondo */}
         <View style={styles.sheet}>

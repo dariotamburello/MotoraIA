@@ -11,8 +11,8 @@
 export type LogLevel = "TX" | "RX" | "INFO" | "PARSE" | "ERR";
 
 export interface ObdLogEntry {
-  id: number;      // ID único incremental
-  ts: number;      // ms desde epoch
+  id: number; // ID único incremental
+  ts: number; // ms desde epoch
   level: LogLevel;
   msg: string;
 }
@@ -27,7 +27,7 @@ export function obdLog(level: LogLevel, msg: string): void {
   if (buffer.length > MAX_ENTRIES) {
     buffer.splice(0, buffer.length - MAX_ENTRIES);
   }
-  subscribers.forEach((fn) => fn());
+  for (const fn of subscribers) fn();
 }
 
 export function getObdLogs(): readonly ObdLogEntry[] {
@@ -36,7 +36,7 @@ export function getObdLogs(): readonly ObdLogEntry[] {
 
 export function clearObdLogs(): void {
   buffer.length = 0;
-  subscribers.forEach((fn) => fn());
+  for (const fn of subscribers) fn();
 }
 
 /** Devuelve una función de limpieza para remover el suscriptor. */

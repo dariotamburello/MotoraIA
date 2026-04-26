@@ -1,16 +1,16 @@
-import { useState, useMemo, useCallback, memo } from "react";
+import { Check, ChevronDown, Search, X } from "lucide-react-native";
+import { memo, useCallback, useMemo, useState } from "react";
 import {
-  View,
-  Text,
-  Modal,
   FlatList,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
+  Modal,
   Platform,
   StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { ChevronDown, X, Search, Check } from "lucide-react-native";
 
 export interface SelectOption {
   label: string;
@@ -50,14 +50,12 @@ export default function AppSelect({
 
   const selectedOption = useMemo(
     () => options.find((o) => o.value === value) ?? null,
-    [options, value]
+    [options, value],
   );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return q.length > 0
-      ? options.filter((o) => o.label.toLowerCase().includes(q))
-      : options;
+    return q.length > 0 ? options.filter((o) => o.label.toLowerCase().includes(q)) : options;
   }, [options, query]);
 
   const handleSelect = useCallback(
@@ -66,7 +64,7 @@ export default function AppSelect({
       setIsOpen(false);
       setQuery("");
     },
-    [onChange]
+    [onChange],
   );
 
   const handleClose = useCallback(() => {
@@ -74,8 +72,7 @@ export default function AppSelect({
     setQuery("");
   }, []);
 
-  const statusBarHeight =
-    Platform.OS === "android" ? (StatusBar.currentHeight ?? 24) : 50;
+  const statusBarHeight = Platform.OS === "android" ? (StatusBar.currentHeight ?? 24) : 50;
 
   return (
     <>
@@ -97,18 +94,12 @@ export default function AppSelect({
           activeOpacity={disabled ? 1 : 0.8}
         >
           <Text
-            style={[
-              styles.triggerText,
-              selectedOption == null && styles.triggerPlaceholder,
-            ]}
+            style={[styles.triggerText, selectedOption == null && styles.triggerPlaceholder]}
             numberOfLines={1}
           >
             {selectedOption != null ? selectedOption.label : placeholder}
           </Text>
-          <ChevronDown
-            size={16}
-            color={disabled ? "#334155" : "#64748B"}
-          />
+          <ChevronDown size={16} color={disabled ? "#334155" : "#64748B"} />
         </TouchableOpacity>
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
       </View>
@@ -149,7 +140,10 @@ export default function AppSelect({
               autoCorrect={false}
             />
             {query.length > 0 && (
-              <TouchableOpacity onPress={() => setQuery("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <TouchableOpacity
+                onPress={() => setQuery("")}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
                 <X size={14} color="#64748B" />
               </TouchableOpacity>
             )}
@@ -162,9 +156,7 @@ export default function AppSelect({
             contentContainerStyle={modalStyles.list}
             keyboardShouldPersistTaps="handled"
             ListEmptyComponent={
-              <Text style={modalStyles.emptyText}>
-                Sin resultados para "{query}"
-              </Text>
+              <Text style={modalStyles.emptyText}>Sin resultados para "{query}"</Text>
             }
             renderItem={({ item }) => (
               <SelectOptionItem
@@ -335,12 +327,7 @@ const SelectOptionItem = memo(function SelectOptionItem({
       onPress={() => onSelect(item)}
       activeOpacity={0.7}
     >
-      <Text
-        style={[
-          modalStyles.optionText,
-          isSelected && modalStyles.optionTextSelected,
-        ]}
-      >
+      <Text style={[modalStyles.optionText, isSelected && modalStyles.optionTextSelected]}>
         {item.label}
       </Text>
       {isSelected && <Check size={16} color="#3B82F6" strokeWidth={2.5} />}

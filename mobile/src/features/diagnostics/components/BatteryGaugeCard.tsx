@@ -9,15 +9,15 @@ function getBarColor(voltage: number, rpm: number | null): string {
 
   if (engineRunning) {
     // Motor en marcha — alternador debería cargar
-    if (voltage < 13.0) return "#EF4444";  // alternador fallando
+    if (voltage < 13.0) return "#EF4444"; // alternador fallando
     if (voltage <= 14.8) return "#34D399"; // OK
-    return "#F59E0B";                       // sobrecarga
+    return "#F59E0B"; // sobrecarga
   }
 
   // Motor apagado — batería en reposo
-  if (voltage < 11.8) return "#EF4444";  // batería baja
+  if (voltage < 11.8) return "#EF4444"; // batería baja
   if (voltage <= 12.8) return "#34D399"; // OK
-  return "#F59E0B";                       // sobrecarga posible
+  return "#F59E0B"; // sobrecarga posible
 }
 
 function getProgress(voltage: number): number {

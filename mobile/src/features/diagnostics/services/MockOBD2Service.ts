@@ -11,12 +11,12 @@
 
 import { DTC_CODES } from "@/shared/constants/dtcCodes";
 import type {
-  LiveTelemetryData,
-  FuelType,
-  OBD2DeviceInfo,
-  PermissionResult,
-  PairedDevice,
   ConnectProgressCallback,
+  FuelType,
+  LiveTelemetryData,
+  OBD2DeviceInfo,
+  PairedDevice,
+  PermissionResult,
 } from "./obd/types";
 
 // ---------------------------------------------------------------------------
@@ -106,8 +106,23 @@ class MockOBD2Service {
   /** PIDs simulados — todos excepto los de DISABLED_SENSORS. */
   getSupportedPids(): Set<string> {
     const allPids = new Set([
-      "04", "05", "0B", "0C", "0D", "0E", "0F", "10", "11",
-      "1F", "21", "2F", "31", "42", "46", "5C", "5E",
+      "04",
+      "05",
+      "0B",
+      "0C",
+      "0D",
+      "0E",
+      "0F",
+      "10",
+      "11",
+      "1F",
+      "21",
+      "2F",
+      "31",
+      "42",
+      "46",
+      "5C",
+      "5E",
     ]);
     for (const sensor of DISABLED_SENSORS) {
       const pid = SENSOR_TO_PID[sensor];
@@ -144,9 +159,7 @@ class MockOBD2Service {
   }
 
   async getPairedDevices(): Promise<PairedDevice[]> {
-    return [
-      { address: "00:1D:A5:68:98:8B", name: "OBDII Mock Adapter" },
-    ];
+    return [{ address: "00:1D:A5:68:98:8B", name: "OBDII Mock Adapter" }];
   }
 
   // ── Conexión ──────────────────────────────────────────────────────────────
@@ -155,10 +168,7 @@ class MockOBD2Service {
    * Simula el handshake ELM327 completo con delays realistas
    * y reporte de progreso paso a paso.
    */
-  async connect(
-    _address: string,
-    onProgress?: ConnectProgressCallback,
-  ): Promise<OBD2DeviceInfo> {
+  async connect(_address: string, onProgress?: ConnectProgressCallback): Promise<OBD2DeviceInfo> {
     onProgress?.("bt_connect");
     await sleep(800);
 
@@ -209,12 +219,24 @@ class MockOBD2Service {
 
     // Estado persistente entre ticks (simula merge parcial del servicio real)
     let lastData: LiveTelemetryData = {
-      rpm: null, speed: null, coolantTemp: null, batteryVoltage: null,
-      engineLoad: null, throttlePosition: null, intakeAirTemp: null,
-      mafAirFlow: null, intakeManifoldPressure: null, fuelRate: null,
-      timingAdvance: null, fuelLevel: null, ambientAirTemp: null,
-      runtimeSinceStart: null, distanceSinceCodesCleared: null,
-      distanceWithMIL: null, controlModuleVoltage: null, oilTemp: null,
+      rpm: null,
+      speed: null,
+      coolantTemp: null,
+      batteryVoltage: null,
+      engineLoad: null,
+      throttlePosition: null,
+      intakeAirTemp: null,
+      mafAirFlow: null,
+      intakeManifoldPressure: null,
+      fuelRate: null,
+      timingAdvance: null,
+      fuelLevel: null,
+      ambientAirTemp: null,
+      runtimeSinceStart: null,
+      distanceSinceCodesCleared: null,
+      distanceWithMIL: null,
+      controlModuleVoltage: null,
+      oilTemp: null,
       fuelConsumption: null,
     };
 
