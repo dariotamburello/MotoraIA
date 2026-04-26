@@ -1,30 +1,44 @@
-import { useEffect } from "react";
-import { Stack, useRouter, useSegments } from "expo-router";
-import { StatusBar } from "expo-status-bar";
-import { DarkTheme, ThemeProvider } from "@react-navigation/native";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { onAuthStateChanged } from "firebase/auth";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { auth } from "@/services/firebase/config";
-import { useAuthStore, activeRoleStorageKey, type ActiveRole } from "@/shared/stores/useAuthStore";
 import { ToastProvider } from "@/shared/components/ToastProvider";
+import { type ActiveRole, activeRoleStorageKey, useAuthStore } from "@/shared/stores/useAuthStore";
+import { ThemeProvider } from "@/shared/theme/ThemeProvider";
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+  useFonts,
+} from "@expo-google-fonts/inter";
+import {
+  JetBrainsMono_400Regular,
+  JetBrainsMono_500Medium,
+  JetBrainsMono_600SemiBold,
+  JetBrainsMono_700Bold,
+} from "@expo-google-fonts/jetbrains-mono";
+import { colorsDark } from "@motora/design-tokens";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { DarkTheme, ThemeProvider as NavThemeProvider } from "@react-navigation/native";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Stack, useRouter, useSegments } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
+import { StatusBar } from "expo-status-bar";
+import { onAuthStateChanged } from "firebase/auth";
+import { useCallback, useEffect, useMemo } from "react";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
-// ---------------------------------------------------------------------------
-// Tema oscuro con el color de fondo principal de Motora.
-// Evita el flash blanco entre transiciones de pantalla.
-// ---------------------------------------------------------------------------
-const MOTORA_THEME = {
+// Mantiene visible el splash hasta que las fonts terminen de cargar.
+SplashScreen.preventAutoHideAsync().catch(() => {});
+
+const SPLASH_FLOOR_MS = 600;
+
+const MOTORA_NAV_THEME = {
   ...DarkTheme,
   colors: {
     ...DarkTheme.colors,
-    background: "#0F172A",
+    background: colorsDark.background.primary,
   },
 };
 
-// ---------------------------------------------------------------------------
-// QueryClient — configuración global para TanStack Query.
-// staleTime de 5 min evita re-fetches innecesarios durante la navegación.
-// ---------------------------------------------------------------------------
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -34,11 +48,6 @@ const queryClient = new QueryClient({
   },
 });
 
-// ---------------------------------------------------------------------------
-// Hook de guard de autenticación.
-// Centraliza la lógica de redirección aquí en el root layout para no
-// duplicarla en cada grupo (auth)/(app).
-// ---------------------------------------------------------------------------
 function useAuthGuard() {
   const { user, isInitialized } = useAuthStore();
   const segments = useSegments();
@@ -47,61 +56,43 @@ function useAuthGuard() {
   useEffect(() => {
     if (!isInitialized) return;
 
-    // useSegments() puede estar tipado como tupla — castear a string[] para acceso seguro.
     const segs = segments as string[];
     const inAuthGroup = segs[0] === "(auth)";
     const inOnboardingProfile = inAuthGroup && segs[1] === "onboarding-profile";
-    // El paso 3 del onboarding (vehículo) también vive en el grupo auth.
-    // Lo excluimos del redirect automático para que el usuario pueda completarlo
-    // o saltarlo sin que el guard lo saque antes de tiempo.
     const inOnboardingVehicle = inAuthGroup && segs[1] === "onboarding-vehicle";
 
     if (!user && !inAuthGroup) {
-      // No autenticado fuera del grupo auth → welcome.
       router.replace("/(auth)");
     } else if (user && !user.displayName && !inAuthGroup) {
-      // Auth Limbo: autenticado pero perfil incompleto (displayName no seteado)
-      // fuera del grupo auth → volver al onboarding.
       router.replace("/(auth)/onboarding-profile");
-    } else if (user && user.displayName && inAuthGroup && !inOnboardingProfile && !inOnboardingVehicle) {
-      // Autenticado con perfil completo en pantallas de auth → app principal.
+    } else if (user?.displayName && inAuthGroup && !inOnboardingProfile && !inOnboardingVehicle) {
       router.replace("/(app)/(tabs)/");
     }
   }, [user, isInitialized, segments]);
 }
 
-// ---------------------------------------------------------------------------
-// RootLayout — único punto de inicialización de Firebase Auth listener.
-// ---------------------------------------------------------------------------
 function RootLayoutNav() {
   const { setUser, setActiveRole, setInitialized } = useAuthStore();
 
   useAuthGuard();
 
   useEffect(() => {
-    // Suscribirse a los cambios de sesión. Se desuscribe al desmontar.
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
 
       if (firebaseUser) {
-        // Restaurar el último rol activo persistido para este usuario.
-        // Si no hay valor guardado, el store ya tiene "CLIENT" por defecto.
         try {
-          const persisted = await AsyncStorage.getItem(
-            activeRoleStorageKey(firebaseUser.uid)
-          );
+          const persisted = await AsyncStorage.getItem(activeRoleStorageKey(firebaseUser.uid));
           if (persisted === "CLIENT" || persisted === "BUSINESS") {
             setActiveRole(persisted as ActiveRole);
           }
         } catch {
-          // Fallo silencioso — el default "CLIENT" del store se mantiene.
+          // fallback CLIENT
         }
       } else {
-        // Al cerrar sesión, resetear el rol activo a CLIENT.
         setActiveRole("CLIENT");
       }
 
-      // Marcar como inicializado para que useAuthGuard pueda actuar.
       setInitialized(true);
     });
 
@@ -112,7 +103,7 @@ function RootLayoutNav() {
     <Stack
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: "#0F172A" },
+        contentStyle: { backgroundColor: colorsDark.background.primary },
       }}
     >
       <Stack.Screen name="(auth)" />
@@ -122,14 +113,48 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
+  const startTimeRef = useMemo(() => Date.now(), []);
+
+  const [fontsLoaded] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+    JetBrainsMono_400Regular,
+    JetBrainsMono_500Medium,
+    JetBrainsMono_600SemiBold,
+    JetBrainsMono_700Bold,
+  });
+
+  const onLayoutReady = useCallback(async () => {
+    if (!fontsLoaded) return;
+
+    const elapsed = Date.now() - startTimeRef;
+    const remaining = SPLASH_FLOOR_MS - elapsed;
+    if (remaining > 0) {
+      await new Promise((resolve) => setTimeout(resolve, remaining));
+    }
+    await SplashScreen.hideAsync().catch(() => {});
+  }, [fontsLoaded, startTimeRef]);
+
+  useEffect(() => {
+    void onLayoutReady();
+  }, [onLayoutReady]);
+
+  if (!fontsLoaded) return null;
+
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider value={MOTORA_THEME}>
-        <ToastProvider>
-          <StatusBar style="light" />
-          <RootLayoutNav />
-        </ToastProvider>
+    <SafeAreaProvider>
+      <ThemeProvider initialMode="dark">
+        <QueryClientProvider client={queryClient}>
+          <NavThemeProvider value={MOTORA_NAV_THEME}>
+            <ToastProvider>
+              <StatusBar style="light" />
+              <RootLayoutNav />
+            </ToastProvider>
+          </NavThemeProvider>
+        </QueryClientProvider>
       </ThemeProvider>
-    </QueryClientProvider>
+    </SafeAreaProvider>
   );
 }

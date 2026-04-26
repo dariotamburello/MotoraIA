@@ -1,236 +1,99 @@
-import { useRef, useState, useCallback } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ImageBackground,
-  Dimensions,
-  FlatList,
-  type ViewToken,
-} from "react-native";
+import { Box, FadeUp, Stack, Text } from "@/shared/components/primitives";
+import { useHaptics } from "@/shared/hooks/useHaptics";
+import { useTheme } from "@/shared/hooks/useTheme";
 import { useRouter } from "expo-router";
-import { LinearGradient } from "expo-linear-gradient";
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-
-const SLIDES = [
-  {
-    title: "Tu auto, bajo control",
-    subtitle:
-      "Llevá el historial completo de mantenimiento de tu vehículo en un solo lugar.",
-  },
-  {
-    title: "Diagnóstico inteligente",
-    subtitle:
-      "Conectá tu escáner OBD2 y recibí diagnósticos asistidos por inteligencia artificial.",
-  },
-  {
-    title: "Comercios cercanos",
-    subtitle:
-      "Encontrá talleres de confianza cerca tuyo y agendá turnos fácilmente.",
-  },
-];
+import { TouchableOpacity, type ViewStyle } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function WelcomeScreen() {
   const router = useRouter();
-  const [activeIndex, setActiveIndex] = useState(0);
+  const { colors, spacing, radii } = useTheme();
+  const haptics = useHaptics();
 
-  const onViewableItemsChanged = useRef(
-    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
-      if (viewableItems.length > 0 && viewableItems[0].index != null) {
-        setActiveIndex(viewableItems[0].index);
-      }
-    },
-  ).current;
+  const primaryButtonStyle: ViewStyle = {
+    backgroundColor: colors.brand.primary,
+    borderRadius: radii.default,
+    paddingVertical: spacing[4],
+    paddingHorizontal: spacing[5],
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 52,
+  };
 
-  const viewabilityConfig = useRef({
-    viewAreaCoveragePercentThreshold: 50,
-  }).current;
+  const ghostButtonStyle: ViewStyle = {
+    borderRadius: radii.default,
+    paddingVertical: spacing[4],
+    paddingHorizontal: spacing[5],
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 52,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+  };
 
-  const renderSlide = useCallback(
-    ({ item }: { item: (typeof SLIDES)[number] }) => (
-      <View style={styles.slide}>
-        <Text style={styles.slideTitle}>{item.title}</Text>
-        <Text style={styles.slideSubtitle}>{item.subtitle}</Text>
-      </View>
-    ),
-    [],
-  );
+  const handleStart = () => {
+    haptics.light();
+    router.push("/(auth)/register");
+  };
+
+  const handleSignIn = () => {
+    haptics.light();
+    router.push("/(auth)/login");
+  };
 
   return (
-    <View style={styles.container}>
-      <ImageBackground
-        source={require("../../assets/welcome-app.png")}
-        style={styles.background}
-        resizeMode="cover"
-      >
-        {/* Top gradient — fade to black */}
-        <LinearGradient
-          colors={["#000000", "transparent"]}
-          style={styles.gradientTop}
-        />
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: colors.background.primary }}
+      edges={["top", "bottom"]}
+    >
+      <Box flex bg="background.primary" px={5} py={6}>
+        <Stack flex direction="column" justify="space-between">
+          <Stack direction="column" align="center" gap={3} style={{ marginTop: spacing[12] }}>
+            <FadeUp delay={0}>
+              <Text variant="hero" tone="heading" align="center">
+                Motora
+              </Text>
+            </FadeUp>
+            <FadeUp delay={1}>
+              <Text variant="title-1" tone="heading" align="center">
+                Tu garage, en calma.
+              </Text>
+            </FadeUp>
+            <FadeUp delay={2}>
+              <Text variant="body" tone="muted" align="center">
+                Mantenimiento, diagnóstico OBD2 e IA en un solo lugar.
+              </Text>
+            </FadeUp>
+          </Stack>
 
-        {/* Bottom gradient — fade to black */}
-        <LinearGradient
-          colors={["transparent", "#000000"]}
-          style={styles.gradientBottom}
-          locations={[0, 0.55]}
-        />
-
-        {/* ---- Content ---- */}
-        <View style={styles.content}>
-          {/* Brand */}
-          <Text style={styles.brand}>Motora IA</Text>
-
-          {/* Spacer pushes carousel + CTAs to the bottom */}
-          <View style={styles.spacer} />
-
-          {/* Carousel */}
-          <FlatList
-            data={SLIDES}
-            renderItem={renderSlide}
-            keyExtractor={(_, i) => String(i)}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onViewableItemsChanged={onViewableItemsChanged}
-            viewabilityConfig={viewabilityConfig}
-            bounces={false}
-            style={styles.carousel}
-          />
-
-          {/* Dots */}
-          <View style={styles.dots}>
-            {SLIDES.map((_, i) => (
-              <View
-                key={i}
-                style={[styles.dot, i === activeIndex && styles.dotActive]}
-              />
-            ))}
-          </View>
-
-          {/* CTAs */}
-          <TouchableOpacity
-            style={styles.primaryButton}
-            onPress={() => router.push("/(auth)/register")}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.primaryButtonText}>Crear cuenta</Text>
-          </TouchableOpacity>
-
-          <View style={styles.loginRow}>
-            <Text style={styles.loginText}>¿Ya tenés una cuenta? </Text>
-            <TouchableOpacity onPress={() => router.push("/(auth)/login")}>
-              <Text style={styles.loginLink}>Iniciá sesión</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </ImageBackground>
-    </View>
+          <Stack direction="column" gap={3}>
+            <FadeUp delay={3}>
+              <TouchableOpacity
+                accessibilityRole="button"
+                onPress={handleStart}
+                style={primaryButtonStyle}
+                activeOpacity={0.85}
+              >
+                <Text variant="body-lg" tone="heading" style={{ color: colors.text.heading }}>
+                  Empezar
+                </Text>
+              </TouchableOpacity>
+            </FadeUp>
+            <FadeUp delay={4}>
+              <TouchableOpacity
+                accessibilityRole="button"
+                onPress={handleSignIn}
+                style={ghostButtonStyle}
+                activeOpacity={0.85}
+              >
+                <Text variant="body" tone="body">
+                  Ya tengo cuenta
+                </Text>
+              </TouchableOpacity>
+            </FadeUp>
+          </Stack>
+        </Stack>
+      </Box>
+    </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#000",
-  },
-  background: {
-    flex: 1,
-  },
-  gradientTop: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 180,
-    zIndex: 1,
-  },
-  gradientBottom: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: "55%",
-    zIndex: 1,
-  },
-  content: {
-    flex: 1,
-    zIndex: 2,
-    paddingTop: 64,
-    paddingBottom: 56,
-    paddingHorizontal: 28,
-  },
-  brand: {
-    fontSize: 26,
-    fontWeight: "800",
-    color: "#FFFFFF",
-    textAlign: "center",
-    letterSpacing: -0.5,
-  },
-  spacer: {
-    flex: 1,
-  },
-  carousel: {
-    flexGrow: 0,
-    marginBottom: 16,
-  },
-  slide: {
-    width: SCREEN_WIDTH - 56, // matches paddingHorizontal * 2
-    gap: 8,
-  },
-  slideTitle: {
-    fontSize: 28,
-    fontWeight: "800",
-    color: "#FFFFFF",
-    letterSpacing: -0.5,
-  },
-  slideSubtitle: {
-    fontSize: 16,
-    color: "#D1D5DB",
-    lineHeight: 24,
-  },
-  dots: {
-    flexDirection: "row",
-    gap: 8,
-    marginBottom: 28,
-    marginTop: 4,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "rgba(255,255,255,0.3)",
-  },
-  dotActive: {
-    backgroundColor: "#FFFFFF",
-    width: 24,
-  },
-  primaryButton: {
-    backgroundColor: "#3B82F6",
-    borderRadius: 50,
-    paddingVertical: 16,
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  primaryButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  loginRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-  },
-  loginText: {
-    color: "rgba(255,255,255,0.6)",
-    fontSize: 14,
-  },
-  loginLink: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "700",
-    textDecorationLine: "underline",
-  },
-});
