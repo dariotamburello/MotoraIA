@@ -1,7 +1,10 @@
 /**
- * Pure helpers for the register screen — extracted to keep the screen file
- * focused on UI composition and to make the validation/error-mapping logic
- * testable without spinning up the React Native renderer.
+ * Pure helpers for the auth screens (register + login) — extracted to keep the
+ * screen files focused on UI composition and to make the validation/error-mapping
+ * logic testable without spinning up the React Native renderer.
+ *
+ * Renamed from register.helpers.ts in Story 1.3: el archivo nunca fue
+ * register-specific, ahora lo consumen tanto register.tsx como login.tsx.
  */
 
 import { SSO_USER_CANCELLED } from "@/services/firebase/auth";
@@ -13,6 +16,8 @@ export type AuthErrorClass =
   | "email-already-in-use"
   | "invalid-email"
   | "weak-password"
+  | "wrong-credentials"
+  | "too-many-requests"
   | "network"
   | "generic";
 
@@ -39,6 +44,12 @@ export function classifyAuthError(e: unknown): AuthErrorClass {
       return "invalid-email";
     case "auth/weak-password":
       return "weak-password";
+    case "auth/wrong-password":
+    case "auth/user-not-found":
+    case "auth/invalid-credential":
+      return "wrong-credentials";
+    case "auth/too-many-requests":
+      return "too-many-requests";
     case "auth/network-request-failed":
     case "unavailable":
     case "deadline-exceeded":
@@ -63,6 +74,24 @@ export function isFormSubmittable(args: {
     !args.errorEmail &&
     !args.errorPassword
   );
+}
+
+/**
+ * Login-specific submit gating.
+ *
+ * Diferencia con isFormSubmittable: NO exige MIN_PASSWORD_LENGTH porque pueden
+ * existir cuentas legacy creadas antes de la regla. Sólo exige password no
+ * vacío. `.trim()` rechaza passwords whitespace-only ("   ") que son
+ * inutilizables: dispararían un network call que invariablemente devuelve
+ * wrong-credentials, y el handler limpiaría el password sin que el user
+ * entienda qué pasó.
+ */
+export function isLoginFormSubmittable(args: {
+  email: string;
+  password: string;
+  errorEmail: string | null;
+}): boolean {
+  return EMAIL_REGEX.test(args.email.trim()) && args.password.trim().length > 0 && !args.errorEmail;
 }
 
 /** Email blur validation result. Returns null if valid, or the error message. */

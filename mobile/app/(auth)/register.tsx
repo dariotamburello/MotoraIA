@@ -31,7 +31,7 @@ import {
   isFormSubmittable,
   validateEmailOnBlur,
   validatePasswordOnBlur,
-} from "./register.helpers";
+} from "./auth.helpers";
 
 type LoadingProvider = "email" | "google" | "apple" | null;
 

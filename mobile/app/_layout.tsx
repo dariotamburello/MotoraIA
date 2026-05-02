@@ -1,6 +1,7 @@
+import { clearSessionFlag, hasSessionFlag } from "@/services/auth/session-flag";
 import { configureGoogleSignIn } from "@/services/firebase/auth";
 import { auth } from "@/services/firebase/config";
-import { ToastProvider } from "@/shared/components/ToastProvider";
+import { ToastProvider, useToast } from "@/shared/components/ToastProvider";
 import { type ActiveRole, activeRoleStorageKey, useAuthStore } from "@/shared/stores/useAuthStore";
 import { ThemeProvider } from "@/shared/theme/ThemeProvider";
 import {
@@ -74,13 +75,37 @@ function useAuthGuard() {
 
 function RootLayoutNav() {
   const { setUser, setActiveRole, setInitialized } = useAuthStore();
+  const { showToast } = useToast();
 
   useAuthGuard();
 
   useEffect(() => {
     configureGoogleSignIn();
 
+    const pendingTimeouts: ReturnType<typeof setTimeout>[] = [];
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      // Soft-logout detection: Firebase invalidó la sesión (refresh token >30d,
+      // password change, account deletion, revoke explícito) PERO previamente
+      // el device tenía una sesión válida. Mostrar toast informativo y borrar
+      // el flag para no re-disparar en cold-starts subsiguientes.
+      // Diferir el toast (~600ms = SPLASH_FLOOR_MS) para que aparezca sobre la
+      // welcome screen y no sobre el splash.
+      if (!firebaseUser) {
+        const hadSession = await hasSessionFlag();
+        if (hadSession) {
+          await clearSessionFlag();
+          const id = setTimeout(() => {
+            // Si el user re-loggeó dentro de los SPLASH_FLOOR_MS, NO mostrar el
+            // toast — sería confuso ("tu sesión expiró" sobre sesión activa).
+            if (auth.currentUser === null) {
+              showToast("Tu sesión expiró. Iniciá sesión de nuevo.", "error");
+            }
+          }, SPLASH_FLOOR_MS);
+          pendingTimeouts.push(id);
+        }
+      }
+
       setUser(firebaseUser);
 
       if (firebaseUser) {
@@ -99,8 +124,11 @@ function RootLayoutNav() {
       setInitialized(true);
     });
 
-    return unsubscribe;
-  }, []);
+    return () => {
+      unsubscribe();
+      pendingTimeouts.forEach(clearTimeout);
+    };
+  }, [showToast]);
 
   return (
     <Stack

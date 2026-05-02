@@ -123,7 +123,7 @@ export async function signUpWithGoogle(): Promise<UserCredential> {
       throw new Error(SSO_USER_CANCELLED);
     }
     if (noPlayServices) {
-      // Re-tag with auth/-prefixed code so register.helpers.classifyAuthError
+      // Re-tag with auth/-prefixed code so auth.helpers.classifyAuthError
       // routes it to the network/transient toast bucket instead of generic.
       const tagged = new Error("Google Play Services no disponible o desactualizado.") as Error & {
         code: string;
@@ -254,5 +254,22 @@ export async function signUpWithApple(): Promise<UserCredential> {
     throw error;
   }
 }
+
+// ---------------------------------------------------------------------------
+// Login aliases (Story 1.3)
+//
+// Firebase `signInWithCredential` es idempotente para OAuth providers:
+// si el credential matches un user existente, loggea; si no, crea el user
+// y dispara onUserCreated. Por eso el helper subyacente es el mismo
+// para signup y login — los aliases existen sólo por claridad semántica
+// del callsite (login.tsx llama signInWithGoogle, register.tsx llama
+// signUpWithGoogle aunque corren la misma implementación).
+// ---------------------------------------------------------------------------
+
+/** Alias semántico de signUpWithGoogle. Ver bloque arriba para detalles. */
+export const signInWithGoogle = signUpWithGoogle;
+
+/** Alias semántico de signUpWithApple. Ver bloque arriba para detalles. */
+export const signInWithApple = signUpWithApple;
 
 export { auth };

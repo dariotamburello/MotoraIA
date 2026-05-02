@@ -1,19 +1,19 @@
 /**
- * Pure-helper tests for the register screen.
+ * Pure-helper tests for the auth screens (register + login).
  *
- * The screen itself is composed of primitives that consume ThemeProvider +
+ * The screens themselves are composed of primitives that consume ThemeProvider +
  * SafeAreaProvider + ToastProvider. Spinning all of that up under jest-expo
  * inside a pnpm hoisted workspace is currently flaky (Expo's "winter"
  * polyfills load .ts source files outside Jest's sandbox scope), so the
  * UI-level smoke validation lives in the manual smoke checklist instead.
  *
- * What we DO test here is every piece of logic that drives the screen's
+ * What we DO test here is every piece of logic that drives the screens'
  * decisions — validation, button enable/disable, error classification,
  * cancellation detection. If these stay green, regressions in user-visible
  * behavior require a UI bug rather than a logic bug.
  */
 
-// Mock the firebase auth module so register.helpers can import the
+// Mock the firebase auth module so auth.helpers can import the
 // SSO_USER_CANCELLED sentinel without pulling Firebase / native modules.
 jest.mock("@/services/firebase/auth", () => ({ SSO_USER_CANCELLED: "USER_CANCELLED" }));
 
@@ -24,11 +24,12 @@ import {
   getErrorCode,
   isCancellation,
   isFormSubmittable,
+  isLoginFormSubmittable,
   validateEmailOnBlur,
   validatePasswordOnBlur,
-} from "./register.helpers";
+} from "./auth.helpers";
 
-describe("register helpers — validation", () => {
+describe("auth helpers — validation", () => {
   test("EMAIL_REGEX accepts well-formed emails", () => {
     expect(EMAIL_REGEX.test("user@example.com")).toBe(true);
     expect(EMAIL_REGEX.test("foo.bar+baz@sub.example.co")).toBe(true);
@@ -41,7 +42,7 @@ describe("register helpers — validation", () => {
     expect(EMAIL_REGEX.test("@nope.com")).toBe(false);
   });
 
-  test("MIN_PASSWORD_LENGTH is 8 (matches AC #1 + #8)", () => {
+  test("MIN_PASSWORD_LENGTH is 8 (matches register AC #1 + #8)", () => {
     expect(MIN_PASSWORD_LENGTH).toBe(8);
   });
 
@@ -72,7 +73,7 @@ describe("register helpers — validation", () => {
   });
 });
 
-describe("register helpers — submit gating", () => {
+describe("auth helpers — register submit gating", () => {
   const baseOk = {
     email: "user@example.com",
     password: "supersecret",
@@ -102,7 +103,48 @@ describe("register helpers — submit gating", () => {
   });
 });
 
-describe("register helpers — error classification", () => {
+describe("auth helpers — login submit gating", () => {
+  const baseOk = {
+    email: "user@example.com",
+    password: "anything",
+    errorEmail: null,
+  };
+
+  test("isLoginFormSubmittable returns true with valid email + non-empty password", () => {
+    expect(isLoginFormSubmittable(baseOk)).toBe(true);
+  });
+
+  test("isLoginFormSubmittable returns true even for password <8 chars (legacy accounts)", () => {
+    // Login NO valida MIN_PASSWORD_LENGTH — sólo password.length > 0.
+    expect(isLoginFormSubmittable({ ...baseOk, password: "short" })).toBe(true);
+    expect(isLoginFormSubmittable({ ...baseOk, password: "a" })).toBe(true);
+  });
+
+  test("isLoginFormSubmittable returns false when email invalid", () => {
+    expect(isLoginFormSubmittable({ ...baseOk, email: "no-at" })).toBe(false);
+  });
+
+  test("isLoginFormSubmittable returns false when password is empty", () => {
+    expect(isLoginFormSubmittable({ ...baseOk, password: "" })).toBe(false);
+  });
+
+  test("isLoginFormSubmittable returns false when password is whitespace-only", () => {
+    expect(isLoginFormSubmittable({ ...baseOk, password: "   " })).toBe(false);
+    expect(isLoginFormSubmittable({ ...baseOk, password: "\t\n " })).toBe(false);
+  });
+
+  test("isLoginFormSubmittable returns false when errorEmail is present", () => {
+    expect(isLoginFormSubmittable({ ...baseOk, errorEmail: "Revisá el formato del email." })).toBe(
+      false,
+    );
+  });
+
+  test("isLoginFormSubmittable trims whitespace before validating email", () => {
+    expect(isLoginFormSubmittable({ ...baseOk, email: "  user@example.com  " })).toBe(true);
+  });
+});
+
+describe("auth helpers — error classification", () => {
   test("getErrorCode extracts code field from Firebase-shaped errors", () => {
     expect(getErrorCode({ code: "auth/weak-password" })).toBe("auth/weak-password");
   });
@@ -122,6 +164,24 @@ describe("register helpers — error classification", () => {
     expect(classifyAuthError({ code: "auth/weak-password" })).toBe("weak-password");
   });
 
+  // ── Login-specific codes (Story 1.3) ──────────────────────────────────────
+  test("classifyAuthError maps wrong-password to wrong-credentials", () => {
+    expect(classifyAuthError({ code: "auth/wrong-password" })).toBe("wrong-credentials");
+  });
+
+  test("classifyAuthError maps user-not-found to wrong-credentials (no enumeration)", () => {
+    expect(classifyAuthError({ code: "auth/user-not-found" })).toBe("wrong-credentials");
+  });
+
+  test("classifyAuthError maps invalid-credential (Firebase 9+ unified) to wrong-credentials", () => {
+    expect(classifyAuthError({ code: "auth/invalid-credential" })).toBe("wrong-credentials");
+  });
+
+  test("classifyAuthError maps too-many-requests to its own bucket", () => {
+    expect(classifyAuthError({ code: "auth/too-many-requests" })).toBe("too-many-requests");
+  });
+  // ──────────────────────────────────────────────────────────────────────────
+
   test("classifyAuthError maps every network-style code to 'network'", () => {
     expect(classifyAuthError({ code: "auth/network-request-failed" })).toBe("network");
     expect(classifyAuthError({ code: "unavailable" })).toBe("network");
@@ -134,7 +194,7 @@ describe("register helpers — error classification", () => {
   });
 });
 
-describe("register helpers — SSO cancellation", () => {
+describe("auth helpers — SSO cancellation", () => {
   test("isCancellation true when error.message === USER_CANCELLED sentinel", () => {
     expect(isCancellation(new Error("USER_CANCELLED"))).toBe(true);
   });
