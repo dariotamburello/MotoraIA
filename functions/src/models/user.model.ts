@@ -18,12 +18,16 @@ export interface UserProfile {
   age: number;
   activeRole: UserRole;
   country?: string;
+  photoURL?: string | null;
 }
 
 export enum SubscriptionTierUser {
   FREE = "FREE",
   PREMIUM = "PREMIUM",
 }
+
+/** Default country code for MVP (Argentina). */
+export const DEFAULT_USER_COUNTRY = "AR";
 
 /** Límites de recursos por tier del usuario. */
 export const TIER_LIMITS: Record<SubscriptionTierUser, { vehicles: number; businesses: number }> = {
@@ -41,6 +45,7 @@ export interface UserStats {
 
 export interface UserDocument {
   uid: string;
+  email: string | null;
   profile: UserProfile;
   stats: UserStats;
   subscriptionTier: SubscriptionTierUser;

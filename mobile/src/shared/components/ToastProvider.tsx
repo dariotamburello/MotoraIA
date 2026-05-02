@@ -9,14 +9,24 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export type ToastType = "success" | "error";
 
+export interface ToastAction {
+  label: string;
+  onPress: () => void;
+}
+
+export interface ToastOptions {
+  action?: ToastAction;
+}
+
 interface ToastItem {
   id: string;
   message: string;
   type: ToastType;
+  action?: ToastAction;
 }
 
 interface ToastContextValue {
-  showToast: (message: string, type: ToastType) => void;
+  showToast: (message: string, type: ToastType, options?: ToastOptions) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -99,6 +109,26 @@ function Toast({ toast, onDismiss }: ToastItemProps) {
       >
         {toast.message}
       </Text>
+      {toast.action && (
+        <TouchableOpacity
+          onPress={() => {
+            toast.action?.onPress();
+            dismiss();
+          }}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel={toast.action.label}
+        >
+          <Text
+            style={[
+              styles.actionLabel,
+              isSuccess ? styles.actionLabelSuccess : styles.actionLabelError,
+            ]}
+          >
+            {toast.action.label}
+          </Text>
+        </TouchableOpacity>
+      )}
       <TouchableOpacity onPress={dismiss} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
         <X size={15} color={isSuccess ? "#34D399" : "#EF4444"} strokeWidth={2.5} />
       </TouchableOpacity>
@@ -116,9 +146,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const insets = useSafeAreaInsets();
 
-  const showToast = useCallback((message: string, type: ToastType) => {
+  const showToast = useCallback((message: string, type: ToastType, options?: ToastOptions) => {
     const id = String(nextId++);
-    setToasts((prev) => [...prev, { id, message, type }]);
+    setToasts((prev) => [...prev, { id, message, type, action: options?.action }]);
   }, []);
 
   const dismissToast = useCallback((id: string) => {
@@ -180,4 +210,11 @@ const styles = StyleSheet.create({
   },
   messageSuccess: { color: "#A7F3D0" },
   messageError: { color: "#FCA5A5" },
+  actionLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    paddingHorizontal: 6,
+  },
+  actionLabelSuccess: { color: "#34D399" },
+  actionLabelError: { color: "#EF4444" },
 });

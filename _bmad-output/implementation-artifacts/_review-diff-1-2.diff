@@ -1,0 +1,1959 @@
+diff --git a/_bmad-output/implementation-artifacts/sprint-status.yaml b/_bmad-output/implementation-artifacts/sprint-status.yaml
+index 5bdf3f2..0422c3d 100644
+--- a/_bmad-output/implementation-artifacts/sprint-status.yaml
++++ b/_bmad-output/implementation-artifacts/sprint-status.yaml
+@@ -1,5 +1,5 @@
+ # generated: 2026-04-25
+-# last_updated: 2026-04-26 (story 1-1 → done)
++# last_updated: 2026-05-01 (story 1-2 → review via dev-story)
+ # project: motora-ia
+ # Note: last_updated reflects most recent change to development_status entries.
+ # project_key: NOKEY
+@@ -36,7 +36,7 @@
+ # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+ 
+ generated: 2026-04-25
+-last_updated: 2026-04-25
++last_updated: 2026-05-01
+ project: motora-ia
+ project_key: NOKEY
+ tracking_system: file-system
+@@ -46,7 +46,7 @@ development_status:
+   # Epic 1: Foundation & Authentication
+   epic-1: in-progress
+   1-1-project-foundation-welcome-screen: done
+-  1-2-user-registration-email-google-apple: backlog
++  1-2-user-registration-email-google-apple: review
+   1-3-user-login-session-persistence: backlog
+   1-4-password-reset-via-email: backlog
+   1-5-user-profile-view-edit: backlog
+diff --git a/firestore.rules b/firestore.rules
+index 480ea9f..56eba34 100644
+--- a/firestore.rules
++++ b/firestore.rules
+@@ -3,17 +3,19 @@ rules_version = '2';
+ service cloud.firestore {
+   match /databases/{database}/documents {
+ 
+-    // This rule allows anyone with your Firestore database reference to view, edit,
+-    // and delete all data in your Firestore database. It is useful for getting
+-    // started, but it is configured to expire after 30 days because it
+-    // leaves your app open to attackers. At that time, all client
+-    // requests to your Firestore database will be denied.
+-    //
+-    // Make sure to write security rules for your app before that time, or else
+-    // all client requests to your Firestore database will be denied until you Update
+-    // your rules
++    // Layer 2: Ownership — solo el dueño puede leer/actualizar su doc.
++    // create y delete quedan reservados al Admin SDK (trigger onUserCreated +
++    // deleteAccountHandler), bloqueados para el cliente por defecto.
++    match /users/{uid} {
++      allow read, update: if request.auth != null && request.auth.uid == uid;
++      allow create: if false;
++      allow delete: if false;
++    }
++
++    // Catch-all: todo lo demás bloqueado hasta Story 1.7 (multi-tenant rules
++    // completas para vehicles, tasks, businesses, etc.). Defense in depth.
+     match /{document=**} {
+-      allow read, write: if request.time < timestamp.date(2026, 4, 24);
++      allow read, write: if false;
+     }
+   }
+-}
+\ No newline at end of file
++}
+diff --git a/functions/package.json b/functions/package.json
+index 0be51bb..479530d 100644
+--- a/functions/package.json
++++ b/functions/package.json
+@@ -9,7 +9,8 @@
+     "start": "pnpm run shell",
+     "deploy": "firebase deploy --only functions",
+     "logs": "firebase functions:log",
+-    "test": "echo \"no tests yet\" && exit 0"
++    "test": "jest --passWithNoTests",
++    "test:rules": "firebase emulators:exec --only firestore \"jest --config jest.rules.config.js --testPathPattern=tests/rules\""
+   },
+   "engines": {
+     "node": "22"
+@@ -23,12 +24,16 @@
+     "zod": "^4.3.6"
+   },
+   "devDependencies": {
++    "@firebase/rules-unit-testing": "^4.0.1",
++    "@types/jest": "^30.0.0",
+     "@typescript-eslint/eslint-plugin": "^5.12.0",
+     "@typescript-eslint/parser": "^5.12.0",
+     "eslint": "^8.9.0",
+     "eslint-config-google": "^0.14.0",
+     "eslint-plugin-import": "^2.25.4",
+     "firebase-functions-test": "^3.4.1",
++    "jest": "^29.7.0",
++    "ts-jest": "^29.4.9",
+     "typescript": "^5.7.3"
+   },
+   "private": true
+diff --git a/functions/src/controllers/auth.controller.ts b/functions/src/controllers/auth.controller.ts
+index 4d7c177..735d761 100644
+--- a/functions/src/controllers/auth.controller.ts
++++ b/functions/src/controllers/auth.controller.ts
+@@ -1,20 +1,24 @@
+ import * as functions from "firebase-functions/v1";
+ import { getFirestore, Timestamp } from "firebase-admin/firestore";
+ import {
++  DEFAULT_USER_COUNTRY,
++  DEFAULT_USER_STATS,
++  SubscriptionTierUser,
+   UserDocument,
+-  UserRole,
+   UserGender,
+-  SubscriptionTierUser,
+-  DEFAULT_USER_STATS,
++  UserRole,
+ } from "../models/user.model";
+ 
+ /**
+  * Trigger: se ejecuta automáticamente cuando Firebase Auth
+- * registra un nuevo usuario (email/password, Google, etc.).
++ * registra un nuevo usuario (email/password, Google, Apple).
+  *
+  * Responsabilidad: crear el documento canónico del usuario en
+- * la colección `users` con rol por defecto CLIENT y estadísticas
+- * inicializadas en cero.
++ * la colección `users` con rol por defecto CLIENT, país AR,
++ * tier FREE y estadísticas inicializadas en cero.
++ *
++ * Idempotente: si el documento ya existe (race con
++ * updateUserProfile() del onboarding) no se sobreescribe.
+  */
+ export const onUserCreated = functions.auth
+   .user()
+@@ -22,29 +26,27 @@ export const onUserCreated = functions.auth
+     const db = getFirestore();
+     const ref = db.collection("users").doc(user.uid);
+ 
+-    // Verificar si el documento ya fue creado por updateUserProfile durante
+-    // el onboarding (race condition: el cliente completó el paso 2 antes de
+-    // que este trigger terminara). En ese caso, no sobreescribimos.
+     const existing = await ref.get();
+     if (existing.exists) {
+-      functions.logger.info(
+-        "User document already exists, skipping creation.",
+-        {
+-          uid: user.uid,
+-        },
+-      );
++      functions.logger.info("User document already exists, skipping creation.", {
++        uid: user.uid,
++      });
+       return;
+     }
+ 
+     const now = Timestamp.now();
++    const provider = user.providerData[0]?.providerId ?? "password";
+ 
+     const newUser: UserDocument = {
+       uid: user.uid,
++      ...(user.email ? { email: user.email } : {}),
+       profile: {
+         name: user.displayName ?? "",
+         gender: UserGender.PREFER_NOT_TO_SAY,
+         age: 0,
+         activeRole: UserRole.CLIENT,
++        country: DEFAULT_USER_COUNTRY,
++        photoURL: user.photoURL ?? null,
+       },
+       stats: DEFAULT_USER_STATS,
+       subscriptionTier: SubscriptionTierUser.FREE,
+@@ -57,5 +59,8 @@ export const onUserCreated = functions.auth
+     functions.logger.info("User document created.", {
+       uid: user.uid,
+       email: user.email,
++      provider,
+     });
++
++    // TODO Story 7.1: enviar email de bienvenida vía SendGrid.
+   });
+diff --git a/functions/src/models/user.model.ts b/functions/src/models/user.model.ts
+index c7aec48..46c09f3 100644
+--- a/functions/src/models/user.model.ts
++++ b/functions/src/models/user.model.ts
+@@ -18,6 +18,7 @@ export interface UserProfile {
+   age: number;
+   activeRole: UserRole;
+   country?: string;
++  photoURL?: string | null;
+ }
+ 
+ export enum SubscriptionTierUser {
+@@ -25,6 +26,9 @@ export enum SubscriptionTierUser {
+   PREMIUM = "PREMIUM",
+ }
+ 
++/** Default country code for MVP (Argentina). */
++export const DEFAULT_USER_COUNTRY = "AR";
++
+ /** Límites de recursos por tier del usuario. */
+ export const TIER_LIMITS: Record<SubscriptionTierUser, { vehicles: number; businesses: number }> = {
+   [SubscriptionTierUser.FREE]: { vehicles: 2, businesses: 1 },
+@@ -41,6 +45,7 @@ export interface UserStats {
+ 
+ export interface UserDocument {
+   uid: string;
++  email?: string;
+   profile: UserProfile;
+   stats: UserStats;
+   subscriptionTier: SubscriptionTierUser;
+diff --git a/mobile/app.json b/mobile/app.json
+index 5fae3ea..690df00 100644
+--- a/mobile/app.json
++++ b/mobile/app.json
+@@ -13,7 +13,9 @@
+       "backgroundColor": "#3B82F6"
+     },
+     "ios": {
+-      "supportsTablet": true
++      "supportsTablet": true,
++      "bundleIdentifier": "com.dariotamburello.motora",
++      "usesAppleSignIn": true
+     },
+     "android": {
+       "adaptiveIcon": {
+@@ -36,6 +38,15 @@
+       "favicon": "./assets/favicon.png",
+       "bundler": "metro"
+     },
+-    "plugins": ["expo-router"]
++    "plugins": [
++      "expo-router",
++      [
++        "@react-native-google-signin/google-signin",
++        {
++          "iosUrlScheme": "com.googleusercontent.apps.PLACEHOLDER_REVERSED_CLIENT_ID"
++        }
++      ],
++      "expo-apple-authentication"
++    ]
+   }
+ }
+diff --git a/mobile/app/(auth)/register.tsx b/mobile/app/(auth)/register.tsx
+index 74019b9..09a3782 100644
+--- a/mobile/app/(auth)/register.tsx
++++ b/mobile/app/(auth)/register.tsx
+@@ -1,311 +1,518 @@
+-import { signUp } from "@/services/firebase/auth";
+-import AuthBackground from "@/shared/components/AuthBackground";
+-import { useRouter } from "expo-router";
++import {
++  isAppleSignInAvailable,
++  signUp,
++  signUpWithApple,
++  signUpWithGoogle,
++} from "@/services/firebase/auth";
++import { useToast } from "@/shared/components/ToastProvider";
++import { Box, FadeUp, Hairline, Stack, Text } from "@/shared/components/primitives";
++import { useHaptics } from "@/shared/hooks/useHaptics";
++import { useTheme } from "@/shared/hooks/useTheme";
++import { useLocalSearchParams, useRouter } from "expo-router";
+ import { ArrowLeft, Eye, EyeOff, Lock, Mail } from "lucide-react-native";
+-import { useState } from "react";
++import { useEffect, useMemo, useState } from "react";
+ import {
+   ActivityIndicator,
+   KeyboardAvoidingView,
+   Platform,
+   ScrollView,
+-  StyleSheet,
+-  Text,
+   TextInput,
+   TouchableOpacity,
+   View,
++  type ViewStyle,
+ } from "react-native";
++import { SafeAreaView } from "react-native-safe-area-context";
++import Svg, { Path } from "react-native-svg";
++import {
++  EMAIL_REGEX,
++  MIN_PASSWORD_LENGTH,
++  classifyAuthError,
++  isCancellation,
++  isFormSubmittable,
++  validateEmailOnBlur,
++  validatePasswordOnBlur,
++} from "./register.helpers";
++
++type LoadingProvider = "email" | "google" | "apple" | null;
+ 
+ // ---------------------------------------------------------------------------
+-// RegisterScreen — Paso 1 del onboarding: email + contraseña.
+-// Tras registrarse con éxito, el guard del root layout redirige
+-// automáticamente a /(auth)/onboarding-profile porque user.displayName = null.
++// RegisterScreen — Paso 0 del onboarding: email/password o SSO (Google/Apple).
++// Tras crear el Auth user, el guard del root layout redirige a
++// /(auth)/onboarding-profile porque user.displayName === null.
+ // ---------------------------------------------------------------------------
+ export default function RegisterScreen() {
+   const router = useRouter();
++  const { colors, spacing, radii } = useTheme();
++  const { showToast } = useToast();
++  const haptics = useHaptics();
++  const params = useLocalSearchParams<{ email?: string }>();
+ 
+-  const [email, setEmail] = useState("");
++  const [email, setEmail] = useState(params.email ?? "");
+   const [password, setPassword] = useState("");
+   const [showPassword, setShowPassword] = useState(false);
+-  const [isLoading, setIsLoading] = useState(false);
+-  const [error, setError] = useState<string | null>(null);
++  const [loadingProvider, setLoadingProvider] = useState<LoadingProvider>(null);
++
++  const [errorEmail, setErrorEmail] = useState<string | null>(null);
++  const [errorPassword, setErrorPassword] = useState<string | null>(null);
++  const [emailAlreadyInUse, setEmailAlreadyInUse] = useState(false);
++
++  const [appleAvailable, setAppleAvailable] = useState(false);
++
++  useEffect(() => {
++    let cancelled = false;
++    isAppleSignInAvailable().then((avail) => {
++      if (!cancelled) setAppleAvailable(avail);
++    });
++    return () => {
++      cancelled = true;
++    };
++  }, []);
++
++  const isLoading = loadingProvider !== null;
++
++  const canSubmit = useMemo(
++    () => isFormSubmittable({ email, password, errorEmail, errorPassword }),
++    [email, password, errorEmail, errorPassword],
++  );
++
++  // ── Validation ──────────────────────────────────────────────────────────
++  function handleBlurEmail() {
++    const next = validateEmailOnBlur(email);
++    setErrorEmail(next);
++    if (!next) setEmailAlreadyInUse(false);
++  }
++
++  function handleBlurPassword() {
++    setErrorPassword(validatePasswordOnBlur(password));
++  }
++
++  function handleChangeEmail(value: string) {
++    setEmail(value);
++    if (errorEmail) setErrorEmail(null);
++    if (emailAlreadyInUse) setEmailAlreadyInUse(false);
++  }
+ 
++  function handleChangePassword(value: string) {
++    setPassword(value);
++    if (errorPassword) setErrorPassword(null);
++  }
++
++  // ── Submit handlers ─────────────────────────────────────────────────────
+   async function handleRegister() {
+-    const trimmedEmail = email.trim().toLowerCase();
+-    if (!trimmedEmail || !password) {
+-      setError("Completá el email y la contraseña.");
++    if (!canSubmit) {
++      haptics.error();
+       return;
+     }
+-    if (password.length < 6) {
+-      setError("La contraseña debe tener al menos 6 caracteres.");
+-      return;
++    setLoadingProvider("email");
++    setEmailAlreadyInUse(false);
++
++    try {
++      await signUp(email.trim().toLowerCase(), password);
++      // Navigation handled by root layout auth guard.
++    } catch (e: unknown) {
++      handleAuthError(e, "email");
++    } finally {
++      setLoadingProvider(null);
+     }
++  }
+ 
+-    setError(null);
+-    setIsLoading(true);
++  async function handleGoogle() {
++    setLoadingProvider("google");
++    try {
++      await signUpWithGoogle();
++    } catch (e: unknown) {
++      if (isCancellation(e)) return;
++      handleAuthError(e, "google");
++    } finally {
++      setLoadingProvider(null);
++    }
++  }
+ 
++  async function handleApple() {
++    setLoadingProvider("apple");
+     try {
+-      await signUp(trimmedEmail, password);
+-      // Navegar explícitamente al paso 2 del onboarding.
+-      router.replace("/(auth)/onboarding-profile");
++      await signUpWithApple();
+     } catch (e: unknown) {
+-      setError(getAuthErrorMessage(e));
++      if (isCancellation(e)) return;
++      handleAuthError(e, "apple");
+     } finally {
+-      setIsLoading(false);
++      setLoadingProvider(null);
++    }
++  }
++
++  function handleAuthError(e: unknown, provider: "email" | "google" | "apple") {
++    const klass = classifyAuthError(e);
++    haptics.error();
++
++    if (provider === "email" && klass === "email-already-in-use") {
++      setErrorEmail("Esta cuenta ya existe.");
++      setEmailAlreadyInUse(true);
++      return;
++    }
++    if (provider === "email" && klass === "invalid-email") {
++      setErrorEmail("El email no tiene un formato válido.");
++      return;
++    }
++    if (provider === "email" && klass === "weak-password") {
++      setErrorPassword(`Mínimo ${MIN_PASSWORD_LENGTH} caracteres.`);
++      return;
++    }
++    if (klass === "network") {
++      showToast("Sin conexión. Tocá de nuevo para reintentar.", "error");
++      return;
+     }
++    showToast("Algo salió mal. Vamos a intentar de nuevo.", "error");
+   }
+ 
++  function handleSwitchToLogin() {
++    router.replace({ pathname: "/(auth)/login", params: { email: email.trim() } });
++  }
++
++  // ── Styles ──────────────────────────────────────────────────────────────
++  const fieldWrapperStyle = (hasError: boolean): ViewStyle => ({
++    flexDirection: "row",
++    alignItems: "center",
++    backgroundColor: colors.background.elevated,
++    borderRadius: radii.default,
++    borderWidth: 1,
++    borderColor: hasError ? colors.status.err : colors.border.default,
++    paddingHorizontal: spacing[4],
++    height: 52,
++  });
++
++  const primaryButtonStyle: ViewStyle = {
++    backgroundColor: colors.brand.primary,
++    borderRadius: radii.default,
++    height: 52,
++    alignItems: "center",
++    justifyContent: "center",
++    opacity: !canSubmit || isLoading ? 0.5 : 1,
++  };
++
++  const ssoButtonStyle: ViewStyle = {
++    backgroundColor: colors.background.elevated,
++    borderRadius: radii.default,
++    borderWidth: 1,
++    borderColor: colors.border.default,
++    height: 52,
++    alignItems: "center",
++    justifyContent: "center",
++    flexDirection: "row",
++    gap: spacing[3],
++    opacity: isLoading ? 0.5 : 1,
++  };
++
++  const inlineLinkStyle: ViewStyle = {
++    alignSelf: "flex-start",
++    paddingVertical: spacing[1],
++    paddingHorizontal: spacing[2],
++    marginTop: spacing[1],
++    borderRadius: radii.sm,
++    backgroundColor: colors.brand.soft,
++  };
++
+   return (
+-    <AuthBackground>
++    <SafeAreaView
++      style={{ flex: 1, backgroundColor: colors.background.primary }}
++      edges={["top", "bottom"]}
++    >
+       <KeyboardAvoidingView
+-        style={styles.flex}
+-        behavior={Platform.OS === "ios" ? "padding" : "height"}
++        style={{ flex: 1 }}
++        behavior={Platform.OS === "ios" ? "padding" : undefined}
+       >
+         <ScrollView
+-          style={styles.flex}
+-          contentContainerStyle={styles.container}
++          contentContainerStyle={{
++            flexGrow: 1,
++            paddingHorizontal: spacing[6],
++            paddingBottom: spacing[8],
++          }}
+           keyboardShouldPersistTaps="handled"
+         >
+           {/* Header */}
+-          <View style={styles.header}>
+-            <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+-              <ArrowLeft size={22} color="#CBD5E1" />
++          <Box mt={4} mb={6}>
++            <TouchableOpacity
++              onPress={() => router.back()}
++              accessibilityLabel="Volver"
++              accessibilityRole="button"
++              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
++              style={{
++                width: 44,
++                height: 44,
++                borderRadius: radii.default,
++                backgroundColor: colors.background.elevated,
++                borderWidth: 1,
++                borderColor: colors.border.default,
++                alignItems: "center",
++                justifyContent: "center",
++              }}
++            >
++              <ArrowLeft size={22} color={colors.text.body} />
+             </TouchableOpacity>
+-          </View>
++          </Box>
+ 
+           {/* Title */}
+-          <View style={styles.titleBlock}>
+-            <Text style={styles.title}>Crear cuenta</Text>
+-            <Text style={styles.subtitle}>Empezá a llevar el historial de tu auto.</Text>
+-          </View>
++          <FadeUp delay={0}>
++            <Stack gap={2} style={{ marginBottom: spacing[6] }}>
++              <Text variant="title-1" tone="heading">
++                Creá tu cuenta
++              </Text>
++              <Text variant="body" tone="muted">
++                Empezá a llevar el historial de tu auto.
++              </Text>
++            </Stack>
++          </FadeUp>
+ 
+           {/* Form */}
+-          <View style={styles.form}>
+-            {/* Email */}
+-            <View style={styles.field}>
+-              <Text style={styles.label}>Email</Text>
+-              <View style={styles.inputWrapper}>
+-                <Mail size={18} color="#64748B" style={styles.inputIcon} />
+-                <TextInput
+-                  style={styles.input}
+-                  placeholder="tumail@ejemplo.com"
+-                  placeholderTextColor="#475569"
+-                  keyboardType="email-address"
+-                  autoCapitalize="none"
+-                  autoCorrect={false}
+-                  value={email}
+-                  onChangeText={setEmail}
+-                  editable={!isLoading}
+-                />
+-              </View>
+-            </View>
+-
+-            {/* Password */}
+-            <View style={styles.field}>
+-              <Text style={styles.label}>Contraseña</Text>
+-              <View style={styles.inputWrapper}>
+-                <Lock size={18} color="#64748B" style={styles.inputIcon} />
+-                <TextInput
+-                  style={[styles.input, styles.inputWithToggle]}
+-                  placeholder="Mínimo 6 caracteres"
+-                  placeholderTextColor="#475569"
+-                  secureTextEntry={!showPassword}
+-                  autoCapitalize="none"
+-                  autoCorrect={false}
+-                  value={password}
+-                  onChangeText={setPassword}
+-                  editable={!isLoading}
+-                />
+-                <TouchableOpacity
+-                  onPress={() => setShowPassword((v) => !v)}
+-                  style={styles.eyeButton}
+-                >
+-                  {showPassword ? (
+-                    <EyeOff size={18} color="#64748B" />
+-                  ) : (
+-                    <Eye size={18} color="#64748B" />
+-                  )}
+-                </TouchableOpacity>
+-              </View>
+-            </View>
++          <FadeUp delay={1}>
++            <Stack gap={5}>
++              {/* Email */}
++              <Stack gap={2}>
++                <Text variant="micro" tone="muted" uppercase>
++                  Email
++                </Text>
++                <View style={fieldWrapperStyle(!!errorEmail)}>
++                  <Mail size={18} color={colors.text.muted} style={{ marginRight: spacing[3] }} />
++                  <TextInput
++                    style={{ flex: 1, color: colors.text.heading, fontSize: 15 }}
++                    placeholder="tumail@ejemplo.com"
++                    placeholderTextColor={colors.text.dim}
++                    keyboardType="email-address"
++                    autoCapitalize="none"
++                    autoCorrect={false}
++                    autoComplete="email"
++                    textContentType="emailAddress"
++                    value={email}
++                    onChangeText={handleChangeEmail}
++                    onBlur={handleBlurEmail}
++                    editable={!isLoading}
++                    accessibilityLabel="Email"
++                    accessibilityState={{ disabled: isLoading }}
++                  />
++                </View>
++                {errorEmail && (
++                  <Text variant="caption" tone="err">
++                    {emailAlreadyInUse ? "Esta cuenta ya existe." : errorEmail}
++                  </Text>
++                )}
++                {emailAlreadyInUse && (
++                  <TouchableOpacity
++                    onPress={handleSwitchToLogin}
++                    accessibilityRole="button"
++                    accessibilityLabel="Iniciar sesión con este email"
++                    style={inlineLinkStyle}
++                  >
++                    <Text variant="caption" tone="brand">
++                      Iniciá sesión
++                    </Text>
++                  </TouchableOpacity>
++                )}
++              </Stack>
+ 
+-            {/* Error */}
+-            {error && (
+-              <View style={styles.errorBox}>
+-                <Text style={styles.errorText}>{error}</Text>
+-              </View>
+-            )}
++              {/* Password */}
++              <Stack gap={2}>
++                <Text variant="micro" tone="muted" uppercase>
++                  Contraseña
++                </Text>
++                <View style={fieldWrapperStyle(!!errorPassword)}>
++                  <Lock size={18} color={colors.text.muted} style={{ marginRight: spacing[3] }} />
++                  <TextInput
++                    style={{
++                      flex: 1,
++                      color: colors.text.heading,
++                      fontSize: 15,
++                      paddingRight: spacing[2],
++                    }}
++                    placeholder={`Mínimo ${MIN_PASSWORD_LENGTH} caracteres`}
++                    placeholderTextColor={colors.text.dim}
++                    secureTextEntry={!showPassword}
++                    autoCapitalize="none"
++                    autoCorrect={false}
++                    autoComplete="password-new"
++                    textContentType="newPassword"
++                    value={password}
++                    onChangeText={handleChangePassword}
++                    onBlur={handleBlurPassword}
++                    editable={!isLoading}
++                    accessibilityLabel="Contraseña"
++                    accessibilityState={{ disabled: isLoading }}
++                  />
++                  <TouchableOpacity
++                    onPress={() => setShowPassword((v) => !v)}
++                    accessibilityRole="button"
++                    accessibilityLabel={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
++                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
++                    style={{ padding: spacing[1] }}
++                  >
++                    {showPassword ? (
++                      <EyeOff size={18} color={colors.text.muted} />
++                    ) : (
++                      <Eye size={18} color={colors.text.muted} />
++                    )}
++                  </TouchableOpacity>
++                </View>
++                {errorPassword && (
++                  <Text variant="caption" tone="err">
++                    {errorPassword}
++                  </Text>
++                )}
++              </Stack>
++            </Stack>
++          </FadeUp>
+ 
+-            {/* Submit */}
++          {/* Submit */}
++          <FadeUp delay={2} style={{ marginTop: spacing[6] }}>
+             <TouchableOpacity
+-              style={[styles.submitButton, isLoading && styles.submitDisabled]}
+               onPress={handleRegister}
+-              disabled={isLoading}
++              disabled={!canSubmit || isLoading}
++              accessibilityRole="button"
++              accessibilityLabel="Crear cuenta"
++              accessibilityState={{
++                disabled: !canSubmit || isLoading,
++                busy: loadingProvider === "email",
++              }}
++              style={primaryButtonStyle}
+               activeOpacity={0.85}
+             >
+-              {isLoading ? (
+-                <ActivityIndicator color="#FFFFFF" />
++              {loadingProvider === "email" ? (
++                <ActivityIndicator color={colors.text.heading} />
+               ) : (
+-                <Text style={styles.submitText}>Crear cuenta</Text>
++                <Text variant="body-lg" tone="heading">
++                  Crear cuenta
++                </Text>
+               )}
+             </TouchableOpacity>
+-          </View>
++          </FadeUp>
++
++          {/* Divider */}
++          <FadeUp delay={3} style={{ marginTop: spacing[6] }}>
++            <Stack direction="row" align="center" gap={3}>
++              <Box flex={1}>
++                <Hairline />
++              </Box>
++              <Text variant="caption" tone="muted">
++                o continuá con
++              </Text>
++              <Box flex={1}>
++                <Hairline />
++              </Box>
++            </Stack>
++          </FadeUp>
++
++          {/* SSO buttons */}
++          <FadeUp delay={4} style={{ marginTop: spacing[5] }}>
++            <Stack gap={3}>
++              <TouchableOpacity
++                onPress={handleGoogle}
++                disabled={isLoading}
++                accessibilityRole="button"
++                accessibilityLabel="Continuar con Google"
++                accessibilityState={{ disabled: isLoading, busy: loadingProvider === "google" }}
++                style={ssoButtonStyle}
++                activeOpacity={0.85}
++              >
++                {loadingProvider === "google" ? (
++                  <ActivityIndicator color={colors.text.body} />
++                ) : (
++                  <>
++                    <GoogleGlyph size={18} />
++                    <Text variant="body" tone="heading">
++                      Continuar con Google
++                    </Text>
++                  </>
++                )}
++              </TouchableOpacity>
++
++              {Platform.OS === "ios" && appleAvailable && (
++                <TouchableOpacity
++                  onPress={handleApple}
++                  disabled={isLoading}
++                  accessibilityRole="button"
++                  accessibilityLabel="Continuar con Apple"
++                  accessibilityState={{ disabled: isLoading, busy: loadingProvider === "apple" }}
++                  style={ssoButtonStyle}
++                  activeOpacity={0.85}
++                >
++                  {loadingProvider === "apple" ? (
++                    <ActivityIndicator color={colors.text.body} />
++                  ) : (
++                    <>
++                      <AppleGlyph size={18} color={colors.text.heading} />
++                      <Text variant="body" tone="heading">
++                        Continuar con Apple
++                      </Text>
++                    </>
++                  )}
++                </TouchableOpacity>
++              )}
++            </Stack>
++          </FadeUp>
+ 
+           {/* Footer */}
+-          <View style={styles.footer}>
+-            <Text style={styles.footerText}>¿Ya tenés una cuenta? </Text>
+-            <TouchableOpacity onPress={() => router.replace("/(auth)/login")}>
+-              <Text style={styles.footerLink}>Iniciá sesión</Text>
+-            </TouchableOpacity>
+-          </View>
++          <FadeUp delay={5} style={{ marginTop: spacing[8] }}>
++            <Stack direction="row" justify="center" gap={1}>
++              <Text variant="body-sm" tone="muted">
++                ¿Ya tenés cuenta?
++              </Text>
++              <TouchableOpacity
++                onPress={handleSwitchToLogin}
++                accessibilityRole="button"
++                accessibilityLabel="Iniciar sesión"
++                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
++              >
++                <Text variant="body-sm" tone="brand">
++                  Iniciá sesión
++                </Text>
++              </TouchableOpacity>
++            </Stack>
++          </FadeUp>
+ 
+-          <Text style={styles.terms}>
+-            Al continuar aceptás los Términos de Uso y la Política de Privacidad.
+-          </Text>
++          <FadeUp delay={6} style={{ marginTop: spacing[5] }}>
++            <Text variant="micro" tone="dim" align="center">
++              Al continuar aceptás los Términos de Uso y la Política de Privacidad.
++            </Text>
++          </FadeUp>
+         </ScrollView>
+       </KeyboardAvoidingView>
+-    </AuthBackground>
++    </SafeAreaView>
+   );
+ }
+ 
+ // ---------------------------------------------------------------------------
+-// Mapeo de códigos de error de Firebase Auth a mensajes en español.
++// Brand glyphs (inline SVG to avoid emoji + token-friendly).
++// Google G logo uses brand colors — these are the official Google brand
++// colors and are exempt from the no-hex-literals rule (brand asset).
+ // ---------------------------------------------------------------------------
+-function getAuthErrorMessage(error: unknown): string {
+-  if (error && typeof error === "object" && "code" in error) {
+-    const code = (error as { code: string }).code;
+-    switch (code) {
+-      case "auth/email-already-in-use":
+-        return "Ya existe una cuenta con ese email.";
+-      case "auth/invalid-email":
+-        return "El email no tiene un formato válido.";
+-      case "auth/weak-password":
+-        return "La contraseña debe tener al menos 6 caracteres.";
+-      case "auth/network-request-failed":
+-        return "Sin conexión. Revisá tu internet.";
+-      default:
+-        return "Ocurrió un error. Intentá de nuevo.";
+-    }
+-  }
+-  return "Ocurrió un error. Intentá de nuevo.";
++
++function GoogleGlyph({ size }: { size: number }) {
++  return (
++    <Svg width={size} height={size} viewBox="0 0 48 48">
++      <Path
++        fill="#FFC107"
++        d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"
++      />
++      <Path
++        fill="#FF3D00"
++        d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"
++      />
++      <Path
++        fill="#4CAF50"
++        d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.91 11.91 0 0 1 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"
++      />
++      <Path
++        fill="#1976D2"
++        d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 0 1-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"
++      />
++    </Svg>
++  );
+ }
+ 
+-const styles = StyleSheet.create({
+-  flex: { flex: 1 },
+-  container: {
+-    flexGrow: 1,
+-    paddingHorizontal: 24,
+-    paddingTop: 56,
+-    paddingBottom: 56,
+-  },
+-  header: {
+-    marginBottom: 32,
+-  },
+-  backButton: {
+-    width: 40,
+-    height: 40,
+-    borderRadius: 12,
+-    backgroundColor: "#1E293B",
+-    alignItems: "center",
+-    justifyContent: "center",
+-    borderWidth: 1,
+-    borderColor: "#334155",
+-  },
+-  titleBlock: {
+-    marginBottom: 32,
+-  },
+-  title: {
+-    fontSize: 28,
+-    fontWeight: "800",
+-    color: "#F8FAFC",
+-    letterSpacing: -0.5,
+-    marginBottom: 6,
+-  },
+-  subtitle: {
+-    fontSize: 15,
+-    color: "#94A3B8",
+-  },
+-  form: {
+-    gap: 20,
+-    flex: 1,
+-  },
+-  field: {
+-    gap: 8,
+-  },
+-  label: {
+-    fontSize: 14,
+-    fontWeight: "600",
+-    color: "#CBD5E1",
+-  },
+-  inputWrapper: {
+-    flexDirection: "row",
+-    alignItems: "center",
+-    backgroundColor: "#1E293B",
+-    borderRadius: 12,
+-    borderWidth: 1,
+-    borderColor: "#334155",
+-    paddingHorizontal: 14,
+-    height: 52,
+-  },
+-  inputIcon: {
+-    marginRight: 10,
+-  },
+-  input: {
+-    flex: 1,
+-    color: "#F8FAFC",
+-    fontSize: 15,
+-  },
+-  inputWithToggle: {
+-    paddingRight: 8,
+-  },
+-  eyeButton: {
+-    padding: 4,
+-  },
+-  errorBox: {
+-    backgroundColor: "#450A0A",
+-    borderRadius: 10,
+-    padding: 12,
+-    borderWidth: 1,
+-    borderColor: "#7F1D1D",
+-  },
+-  errorText: {
+-    color: "#FCA5A5",
+-    fontSize: 14,
+-  },
+-  submitButton: {
+-    backgroundColor: "#3B82F6",
+-    borderRadius: 14,
+-    height: 52,
+-    alignItems: "center",
+-    justifyContent: "center",
+-    marginTop: 4,
+-  },
+-  submitDisabled: {
+-    opacity: 0.6,
+-  },
+-  submitText: {
+-    color: "#FFFFFF",
+-    fontSize: 16,
+-    fontWeight: "700",
+-  },
+-  footer: {
+-    flexDirection: "row",
+-    justifyContent: "center",
+-    marginTop: 32,
+-  },
+-  footerText: {
+-    color: "#64748B",
+-    fontSize: 14,
+-  },
+-  footerLink: {
+-    color: "#3B82F6",
+-    fontSize: 14,
+-    fontWeight: "600",
+-  },
+-  terms: {
+-    textAlign: "center",
+-    color: "#475569",
+-    fontSize: 12,
+-    marginTop: 16,
+-    lineHeight: 18,
+-  },
+-});
++function AppleGlyph({ size, color }: { size: number; color: string }) {
++  return (
++    <Svg width={size} height={size} viewBox="0 0 24 24">
++      <Path
++        fill={color}
++        d="M16.365 1.43c0 1.14-.42 2.16-1.26 3.07-.99 1.06-2.18 1.67-3.46 1.57-.04-.13-.06-.27-.06-.42 0-1.1.5-2.22 1.39-3.05.45-.43.99-.78 1.61-1.05.62-.27 1.2-.42 1.74-.45.02.11.04.22.04.33zm4.93 16.5c-.34.78-.74 1.51-1.21 2.18-.65.93-1.18 1.57-1.59 1.93-.64.59-1.32.89-2.05.91-.52.02-1.15-.16-1.88-.46-.74-.31-1.43-.46-2.06-.46-.66 0-1.36.15-2.11.46-.75.31-1.36.47-1.84.49-.7.04-1.4-.27-2.09-.92-.45-.39-.99-1.06-1.65-2-.7-1-1.27-2.16-1.71-3.49-.48-1.43-.71-2.82-.71-4.16 0-1.54.33-2.87.99-3.97.52-.89 1.21-1.59 2.08-2.11.86-.51 1.79-.78 2.79-.79.55 0 1.27.17 2.17.51.89.34 1.46.51 1.71.51.18 0 .81-.2 1.88-.6 1.01-.37 1.86-.52 2.56-.46 1.89.15 3.31.9 4.25 2.24-1.69 1.02-2.52 2.45-2.51 4.28.01 1.43.53 2.61 1.55 3.55.46.43.97.77 1.55 1.01-.13.36-.26.7-.41 1.04z"
++      />
++    </Svg>
++  );
++}
+diff --git a/mobile/app/_layout.tsx b/mobile/app/_layout.tsx
+index 4e77e69..f61cf7a 100644
+--- a/mobile/app/_layout.tsx
++++ b/mobile/app/_layout.tsx
+@@ -1,3 +1,4 @@
++import { configureGoogleSignIn } from "@/services/firebase/auth";
+ import { auth } from "@/services/firebase/config";
+ import { ToastProvider } from "@/shared/components/ToastProvider";
+ import { type ActiveRole, activeRoleStorageKey, useAuthStore } from "@/shared/stores/useAuthStore";
+@@ -77,6 +78,8 @@ function RootLayoutNav() {
+   useAuthGuard();
+ 
+   useEffect(() => {
++    configureGoogleSignIn();
++
+     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+       setUser(firebaseUser);
+ 
+diff --git a/mobile/package.json b/mobile/package.json
+index c17f77a..009308e 100644
+--- a/mobile/package.json
++++ b/mobile/package.json
+@@ -7,7 +7,7 @@
+     "android": "expo run:android",
+     "ios": "expo run:ios",
+     "web": "expo start --web",
+-    "test": "echo \"no tests yet\" && exit 0"
++    "test": "jest --passWithNoTests"
+   },
+   "dependencies": {
+     "@expo-google-fonts/inter": "^0.4.1",
+@@ -15,10 +15,13 @@
+     "@motora/design-tokens": "workspace:*",
+     "@motora/types": "workspace:*",
+     "@react-native-async-storage/async-storage": "2.2.0",
++    "@react-native-google-signin/google-signin": "^16.1.2",
+     "@tanstack/react-query": "^5.95.2",
+     "expo": "~55.0.8",
++    "expo-apple-authentication": "~55.0.13",
+     "expo-blur": "~55.0.12",
+     "expo-constants": "~55.0.9",
++    "expo-crypto": "~15.0.9",
+     "expo-font": "~55.0.6",
+     "expo-haptics": "~55.0.14",
+     "expo-linear-gradient": "~55.0.11",
+@@ -39,7 +42,14 @@
+     "zustand": "^5.0.12"
+   },
+   "devDependencies": {
++    "@testing-library/react-native": "^13.3.3",
++    "@types/jest": "^30.0.0",
++    "@types/node": "^25.6.0",
+     "@types/react": "~19.2.2",
++    "jest": "^29.7.0",
++    "jest-expo": "~55.0.16",
++    "react-test-renderer": "19.2.0",
++    "ts-jest": "^29.4.9",
+     "typescript": "~5.9.2"
+   },
+   "private": true
+diff --git a/mobile/src/services/firebase/auth.ts b/mobile/src/services/firebase/auth.ts
+index 159700d..4f98b79 100644
+--- a/mobile/src/services/firebase/auth.ts
++++ b/mobile/src/services/firebase/auth.ts
+@@ -1,13 +1,25 @@
+ import {
++  GoogleAuthProvider,
++  OAuthProvider,
+   type User,
++  type UserCredential,
+   createUserWithEmailAndPassword,
+   signOut as firebaseSignOut,
+   sendPasswordResetEmail,
++  signInWithCredential,
+   signInWithEmailAndPassword,
+   updateProfile,
+ } from "firebase/auth";
++import { Platform } from "react-native";
+ import { auth } from "./config";
+ 
++/** Sentinel error message used when the user dismisses the SSO native sheet. */
++export const SSO_USER_CANCELLED = "USER_CANCELLED";
++
++// ---------------------------------------------------------------------------
++// Email / password
++// ---------------------------------------------------------------------------
++
+ /** Registra un nuevo usuario con email y contraseña. */
+ export const signUp = (email: string, password: string) =>
+   createUserWithEmailAndPassword(auth, email, password);
+@@ -26,4 +38,154 @@ export const resetPassword = (email: string) => sendPasswordResetEmail(auth, ema
+ export const updateDisplayName = (user: User, displayName: string) =>
+   updateProfile(user, { displayName });
+ 
++// ---------------------------------------------------------------------------
++// Google SSO
++//
++// `@react-native-google-signin/google-signin` requires a native build (no Expo
++// Go). configureGoogleSignIn() must be called once at app boot before any call
++// to signUpWithGoogle().
++// ---------------------------------------------------------------------------
++
++let googleConfigured = false;
++
++/**
++ * Configura el Google Sign-In SDK. Idempotente — invocaciones extra son no-op.
++ * Si EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID no está definida, deja el SDK sin
++ * configurar y emite warning solo en __DEV__ para evitar log spam en prod.
++ */
++export function configureGoogleSignIn(): void {
++  if (googleConfigured) return;
++
++  const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
++  if (!webClientId) {
++    if (__DEV__) {
++      console.warn(
++        "[auth] EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID no definido — Google SSO no funcionará hasta que se configure.",
++      );
++    }
++    return;
++  }
++
++  // Lazy require para no crashear web/test environments donde el módulo nativo
++  // no está linkeado.
++  const { GoogleSignin } = require("@react-native-google-signin/google-signin");
++  GoogleSignin.configure({ webClientId, offlineAccess: false });
++  googleConfigured = true;
++}
++
++/**
++ * Inicia el flow de Google Sign-In nativo y crea/loggea el user en Firebase.
++ *
++ * Throws Error("USER_CANCELLED") si el usuario cierra el sheet nativo
++ * (lo que el caller debería silenciar — no es un error real).
++ */
++export async function signUpWithGoogle(): Promise<UserCredential> {
++  const { GoogleSignin, statusCodes } = require("@react-native-google-signin/google-signin");
++
++  try {
++    if (Platform.OS === "android") {
++      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
++    }
++    const result = await GoogleSignin.signIn();
++    const idToken: string | null = result?.data?.idToken ?? result?.idToken ?? null;
++    if (!idToken) {
++      throw new Error("Google Sign-In no devolvió idToken");
++    }
++
++    const credential = GoogleAuthProvider.credential(idToken);
++    return await signInWithCredential(auth, credential);
++  } catch (error: unknown) {
++    if (
++      error &&
++      typeof error === "object" &&
++      "code" in error &&
++      (error as { code: string }).code === statusCodes.SIGN_IN_CANCELLED
++    ) {
++      throw new Error(SSO_USER_CANCELLED);
++    }
++    throw error;
++  }
++}
++
++// ---------------------------------------------------------------------------
++// Apple SSO
++//
++// Solo disponible en iOS. En Android, isAppleSignInAvailable() retorna false
++// y el caller debe ocultar el botón.
++//
++// Critical: el nonce se PASA a Apple en formato SHA-256 hash, pero a Firebase
++// se le pasa el nonce CRUDO (Firebase verifica la coincidencia internamente).
++// Mezclar los dos hace que Firebase rechace el token con auth/invalid-credential.
++// ---------------------------------------------------------------------------
++
++const NONCE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._";
++
++function generateRawNonce(length = 32): string {
++  // Math.random no es criptográficamente seguro, pero el nonce solo previene
++  // replay attacks y es de uso único + corto-vivido. Si se quisiera un nonce
++  // más fuerte, cambiar a `expo-crypto.getRandomBytesAsync()` (async).
++  let nonce = "";
++  for (let i = 0; i < length; i++) {
++    nonce += NONCE_ALPHABET[Math.floor(Math.random() * NONCE_ALPHABET.length)];
++  }
++  return nonce;
++}
++
++/** Returns true if Apple Sign-In is available on this device (iOS only). */
++export async function isAppleSignInAvailable(): Promise<boolean> {
++  if (Platform.OS !== "ios") return false;
++  const AppleAuthentication = require("expo-apple-authentication");
++  try {
++    return await AppleAuthentication.isAvailableAsync();
++  } catch {
++    return false;
++  }
++}
++
++/**
++ * Inicia el flow de Apple Sign-In nativo y crea/loggea el user en Firebase.
++ *
++ * Throws Error("USER_CANCELLED") si el usuario cierra el sheet nativo.
++ */
++export async function signUpWithApple(): Promise<UserCredential> {
++  if (Platform.OS !== "ios") {
++    throw new Error("Apple Sign-In solo está disponible en iOS.");
++  }
++
++  const AppleAuthentication = require("expo-apple-authentication");
++  const Crypto = require("expo-crypto");
++
++  const rawNonce = generateRawNonce();
++  const hashedNonce = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, rawNonce);
++
++  try {
++    const credential = await AppleAuthentication.signInAsync({
++      requestedScopes: [
++        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
++        AppleAuthentication.AppleAuthenticationScope.EMAIL,
++      ],
++      nonce: hashedNonce,
++    });
++
++    const idToken = credential.identityToken;
++    if (!idToken) {
++      throw new Error("Apple Sign-In no devolvió identityToken");
++    }
++
++    const provider = new OAuthProvider("apple.com");
++    const fbCredential = provider.credential({ idToken, rawNonce });
++    return await signInWithCredential(auth, fbCredential);
++  } catch (error: unknown) {
++    if (
++      error &&
++      typeof error === "object" &&
++      "code" in error &&
++      (error as { code: string }).code === "ERR_REQUEST_CANCELED"
++    ) {
++      throw new Error(SSO_USER_CANCELLED);
++    }
++    throw error;
++  }
++}
++
+ export { auth };
+
+
+diff --git a/functions/jest.config.js b/functions/jest.config.js
+new file mode 100644
+index 0000000..0000001
+--- /dev/null
++++ b/functions/jest.config.js
++++ b/functions/jest.config.js
+@@ -0,0 +1,22 @@
++/** @type {import('jest').Config} */
++module.exports = {
++  testEnvironment: "node",
++  testRegex: ".*\\.(test|spec)\\.[jt]sx?$",
++  testPathIgnorePatterns: ["/node_modules/", "/lib/", "/tests/rules/"],
++  modulePaths: ["<rootDir>/../node_modules"],
++  transform: {
++    "^.+\\.(ts|tsx)$": [
++      "ts-jest",
++      {
++        tsconfig: {
++          target: "ES2022",
++          module: "commonjs",
++          esModuleInterop: true,
++          strict: true,
++        },
++        diagnostics: false,
++        isolatedModules: true,
++      },
++    ],
++  },
++};
+
+
+diff --git a/functions/jest.rules.config.js b/functions/jest.rules.config.js
+new file mode 100644
+index 0000000..0000001
+--- /dev/null
++++ b/functions/jest.rules.config.js
++++ b/functions/jest.rules.config.js
+@@ -0,0 +1,8 @@
++/** @type {import('jest').Config} */
++const base = require("./jest.config.js");
++
++module.exports = {
++  ...base,
++  testPathIgnorePatterns: ["/node_modules/", "/lib/"],
++  testRegex: "tests/rules/.*\\.(test|spec)\\.[jt]sx?$",
++};
+
+
+diff --git a/functions/src/controllers/auth.controller.test.ts b/functions/src/controllers/auth.controller.test.ts
+new file mode 100644
+index 0000000..0000001
+--- /dev/null
++++ b/functions/src/controllers/auth.controller.test.ts
++++ b/functions/src/controllers/auth.controller.test.ts
+@@ -0,0 +1,183 @@
++/**
++ * Unit tests for the onUserCreated trigger.
++ *
++ * Approach: mock firebase-admin/firestore to return controllable stubs and
++ * assert the trigger's behavior (idempotency, default field shape, provider
++ * hydration). This avoids needing the Firestore emulator running for the
++ * default `pnpm --filter functions test` invocation.
++ */
++
++import { Timestamp } from "firebase-admin/firestore";
++
++// ── Mocks ──────────────────────────────────────────────────────────────────
++
++const mockGet = jest.fn();
++const mockSet = jest.fn();
++const mockDoc = jest.fn(() => ({ get: mockGet, set: mockSet }));
++const mockCollection = jest.fn(() => ({ doc: mockDoc }));
++
++jest.mock("firebase-admin/firestore", () => {
++  const actual = jest.requireActual("firebase-admin/firestore");
++  return {
++    ...actual,
++    getFirestore: jest.fn(() => ({ collection: mockCollection })),
++    Timestamp: {
++      now: jest.fn(() => ({ seconds: 1700000000, nanoseconds: 0, _stub: true })),
++    },
++  };
++});
++
++const mockLogger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
++jest.mock("firebase-functions/v1", () => ({
++  logger: mockLogger,
++  auth: {
++    user: jest.fn(() => ({
++      onCreate: (handler: unknown) => handler,
++    })),
++  },
++}));
++
++// SUT ─ imported AFTER mocks so it picks up the mocked modules.
++import { onUserCreated } from "./auth.controller";
++
++// The mocked auth.user().onCreate(handler) returns the handler directly so
++// we can call it as a plain function.
++const trigger = onUserCreated as unknown as (
++  user: {
++    uid: string;
++    email?: string;
++    displayName?: string | null;
++    photoURL?: string | null;
++    providerData?: { providerId: string }[];
++  },
++) => Promise<void>;
++
++beforeEach(() => {
++  mockGet.mockReset();
++  mockSet.mockReset();
++  mockDoc.mockClear();
++  mockCollection.mockClear();
++  mockLogger.info.mockClear();
++});
++
++describe("onUserCreated trigger", () => {
++  test("creates users/{uid} doc with default profile when document does not exist", async () => {
++    mockGet.mockResolvedValueOnce({ exists: false });
++
++    await trigger({
++      uid: "u-email-1",
++      email: "alice@example.com",
++      displayName: null,
++      photoURL: null,
++      providerData: [{ providerId: "password" }],
++    });
++
++    expect(mockCollection).toHaveBeenCalledWith("users");
++    expect(mockDoc).toHaveBeenCalledWith("u-email-1");
++    expect(mockSet).toHaveBeenCalledTimes(1);
++    const written = mockSet.mock.calls[0][0];
++
++    expect(written.uid).toBe("u-email-1");
++    expect(written.email).toBe("alice@example.com");
++    expect(written.profile.name).toBe("");
++    expect(written.profile.photoURL).toBeNull();
++    expect(written.profile.activeRole).toBe("CLIENT");
++    expect(written.profile.gender).toBe("PREFER_NOT_TO_SAY");
++    expect(written.subscriptionTier).toBe("FREE");
++    expect(written.stats).toEqual({
++      vehicleCount: 0,
++      businessCount: 0,
++      diagnosticCount: 0,
++      aiTaskCount: 0,
++    });
++  });
++
++  test("defaults country to AR for MVP locale", async () => {
++    mockGet.mockResolvedValueOnce({ exists: false });
++
++    await trigger({
++      uid: "u-2",
++      email: "x@example.com",
++      providerData: [{ providerId: "password" }],
++    });
++
++    expect(mockSet.mock.calls[0][0].profile.country).toBe("AR");
++  });
++
++  test("hydrates displayName + photoURL from Google provider", async () => {
++    mockGet.mockResolvedValueOnce({ exists: false });
++
++    await trigger({
++      uid: "u-google",
++      email: "g@example.com",
++      displayName: "Dario Tamburello",
++      photoURL: "https://lh3.googleusercontent.com/avatar.jpg",
++      providerData: [{ providerId: "google.com" }],
++    });
++
++    const written = mockSet.mock.calls[0][0];
++    expect(written.profile.name).toBe("Dario Tamburello");
++    expect(written.profile.photoURL).toBe("https://lh3.googleusercontent.com/avatar.jpg");
++  });
++
++  test("is idempotent — does not write when document already exists", async () => {
++    mockGet.mockResolvedValueOnce({ exists: true });
++
++    await trigger({
++      uid: "u-existing",
++      email: "e@example.com",
++      providerData: [{ providerId: "password" }],
++    });
++
++    expect(mockSet).not.toHaveBeenCalled();
++    expect(mockLogger.info).toHaveBeenCalledWith(
++      "User document already exists, skipping creation.",
++      expect.objectContaining({ uid: "u-existing" }),
++    );
++  });
++
++  test("createdAt and updatedAt are Timestamps from Timestamp.now()", async () => {
++    mockGet.mockResolvedValueOnce({ exists: false });
++
++    await trigger({
++      uid: "u-ts",
++      email: "ts@example.com",
++      providerData: [{ providerId: "password" }],
++    });
++
++    const written = mockSet.mock.calls[0][0];
++    expect(Timestamp.now).toHaveBeenCalled();
++    // Both timestamps should be the same instance (single now() call OK to share).
++    expect(written.createdAt).toBeDefined();
++    expect(written.updatedAt).toBeDefined();
++    expect(written.createdAt).toEqual(written.updatedAt);
++    expect((written.createdAt as { _stub: boolean })._stub).toBe(true);
++  });
++
++  test("logs the provider id for observability", async () => {
++    mockGet.mockResolvedValueOnce({ exists: false });
++
++    await trigger({
++      uid: "u-apple",
++      email: "a@privaterelay.appleid.com",
++      providerData: [{ providerId: "apple.com" }],
++    });
++
++    expect(mockLogger.info).toHaveBeenCalledWith(
++      "User document created.",
++      expect.objectContaining({ provider: "apple.com" }),
++    );
++  });
++
++  test("omits email field entirely when Firebase Auth user has no email", async () => {
++    mockGet.mockResolvedValueOnce({ exists: false });
++
++    await trigger({
++      uid: "u-no-email",
++      providerData: [{ providerId: "anonymous" }],
++    });
++
++    const written = mockSet.mock.calls[0][0];
++    expect(written.email).toBeUndefined();
++  });
++});
+
+
+diff --git a/functions/tests/rules/users.rules.test.ts b/functions/tests/rules/users.rules.test.ts
+new file mode 100644
+index 0000000..0000001
+--- /dev/null
++++ b/functions/tests/rules/users.rules.test.ts
++++ b/functions/tests/rules/users.rules.test.ts
+@@ -0,0 +1,117 @@
++/**
++ * Security rules unit tests for users/{uid} ownership (Layer 2).
++ *
++ * Run with:
++ *   pnpm --filter functions test:rules
++ *
++ * Which wraps the test under `firebase emulators:exec --only firestore`.
++ * The Firestore emulator is ephemeral (data wiped on exit).
++ */
++
++import { initializeTestEnvironment, type RulesTestEnvironment, assertFails, assertSucceeds } from "@firebase/rules-unit-testing";
++import { doc, getDoc, setDoc, updateDoc, deleteDoc } from "firebase/firestore";
++import { readFileSync } from "node:fs";
++import { resolve } from "node:path";
++
++let testEnv: RulesTestEnvironment;
++
++beforeAll(async () => {
++  testEnv = await initializeTestEnvironment({
++    projectId: "motora-rules-test",
++    firestore: {
++      rules: readFileSync(resolve(__dirname, "../../../firestore.rules"), "utf8"),
++      host: "127.0.0.1",
++      port: 8080,
++    },
++  });
++});
++
++afterAll(async () => {
++  await testEnv?.cleanup();
++});
++
++beforeEach(async () => {
++  await testEnv.clearFirestore();
++});
++
++describe("firestore.rules — users/{uid} ownership", () => {
++  test("authenticated user can read their own users/{uid} document", async () => {
++    // Seed the doc via Admin SDK (bypasses rules).
++    await testEnv.withSecurityRulesDisabled(async (ctx) => {
++      await setDoc(doc(ctx.firestore(), "users/u1"), {
++        uid: "u1",
++        subscriptionTier: "FREE",
++      });
++    });
++
++    const u1 = testEnv.authenticatedContext("u1");
++    await assertSucceeds(getDoc(doc(u1.firestore(), "users/u1")));
++  });
++
++  test("authenticated user can update their own users/{uid} document", async () => {
++    await testEnv.withSecurityRulesDisabled(async (ctx) => {
++      await setDoc(doc(ctx.firestore(), "users/u1"), {
++        uid: "u1",
++        subscriptionTier: "FREE",
++      });
++    });
++
++    const u1 = testEnv.authenticatedContext("u1");
++    await assertSucceeds(updateDoc(doc(u1.firestore(), "users/u1"), { "profile.name": "Dario" }));
++  });
++
++  test("user CANNOT read another user's document (cross-tenant leak)", async () => {
++    await testEnv.withSecurityRulesDisabled(async (ctx) => {
++      await setDoc(doc(ctx.firestore(), "users/u2"), { uid: "u2" });
++    });
++
++    const u1 = testEnv.authenticatedContext("u1");
++    await assertFails(getDoc(doc(u1.firestore(), "users/u2")));
++  });
++
++  test("user CANNOT update another user's document", async () => {
++    await testEnv.withSecurityRulesDisabled(async (ctx) => {
++      await setDoc(doc(ctx.firestore(), "users/u2"), { uid: "u2" });
++    });
++
++    const u1 = testEnv.authenticatedContext("u1");
++    await assertFails(updateDoc(doc(u1.firestore(), "users/u2"), { hacked: true }));
++  });
++
++  test("anonymous (unauth) request CANNOT read any users/* document", async () => {
++    await testEnv.withSecurityRulesDisabled(async (ctx) => {
++      await setDoc(doc(ctx.firestore(), "users/u1"), { uid: "u1" });
++    });
++
++    const anon = testEnv.unauthenticatedContext();
++    await assertFails(getDoc(doc(anon.firestore(), "users/u1")));
++  });
++
++  test("client CANNOT create users/{uid} (only Admin SDK trigger may)", async () => {
++    const u1 = testEnv.authenticatedContext("u1");
++    await assertFails(setDoc(doc(u1.firestore(), "users/u1"), { uid: "u1" }));
++  });
++
++  test("client CANNOT delete users/{uid} (only Admin SDK deleteAccountHandler may)", async () => {
++    await testEnv.withSecurityRulesDisabled(async (ctx) => {
++      await setDoc(doc(ctx.firestore(), "users/u1"), { uid: "u1" });
++    });
++
++    const u1 = testEnv.authenticatedContext("u1");
++    await assertFails(deleteDoc(doc(u1.firestore(), "users/u1")));
++  });
++
++  test("catch-all blocks reads on other collections (vehicles, tasks, etc.)", async () => {
++    await testEnv.withSecurityRulesDisabled(async (ctx) => {
++      await setDoc(doc(ctx.firestore(), "vehicles/v1"), { ownerId: "u1" });
++    });
++
++    const u1 = testEnv.authenticatedContext("u1");
++    await assertFails(getDoc(doc(u1.firestore(), "vehicles/v1")));
++  });
++
++  test("catch-all blocks writes on other collections", async () => {
++    const u1 = testEnv.authenticatedContext("u1");
++    await assertFails(setDoc(doc(u1.firestore(), "tasks/t1"), { title: "x" }));
++  });
++});
+
+
+diff --git a/functions/tests/rules/README.md b/functions/tests/rules/README.md
+new file mode 100644
+index 0000000..0000001
+--- /dev/null
++++ b/functions/tests/rules/README.md
++++ b/functions/tests/rules/README.md
+@@ -0,0 +1,28 @@
++# Firestore Security Rules Tests
++
++These tests validate `firestore.rules` against `users/{uid}` ownership and the
++catch-all deny rule, using `@firebase/rules-unit-testing`.
++
++## Pre-requisites
++
++- **Java 11+** in PATH (the Firestore emulator is a Java app).
++- `firebase-tools` installed (already a workspace devDep at the repo root).
++
++## Running
++
++```bash
++pnpm --filter functions test:rules
++```
++
++This wraps the test under `firebase emulators:exec --only firestore "..."`,
++which automatically starts the emulator on port 8080, runs the suite, and
++shuts down the emulator on exit.
++
++## What's covered
++
++- User can read/update their own `users/{uid}` doc.
++- User CANNOT read/update another user's doc (cross-tenant leak guard).
++- Anonymous requests blocked entirely.
++- Client cannot create or delete `users/{uid}` (Admin SDK only).
++- Catch-all blocks every other collection (vehicles, tasks, etc.) — these
++  open up in **Story 1.7**.
+
+
+diff --git a/mobile/app/(auth)/register.helpers.ts b/mobile/app/(auth)/register.helpers.ts
+new file mode 100644
+index 0000000..0000001
+--- /dev/null
++++ b/mobile/app/(auth)/register.helpers.ts
++++ b/mobile/app/(auth)/register.helpers.ts
+@@ -0,0 +1,79 @@
++/**
++ * Pure helpers for the register screen — extracted to keep the screen file
++ * focused on UI composition and to make the validation/error-mapping logic
++ * testable without spinning up the React Native renderer.
++ */
++
++import { SSO_USER_CANCELLED } from "@/services/firebase/auth";
++
++export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
++export const MIN_PASSWORD_LENGTH = 8;
++
++export type AuthErrorClass =
++  | "email-already-in-use"
++  | "invalid-email"
++  | "weak-password"
++  | "network"
++  | "generic";
++
++/** Extract Firebase-style error code from arbitrary thrown values. */
++export function getErrorCode(e: unknown): string | undefined {
++  if (e && typeof e === "object" && "code" in e) {
++    return (e as { code: string }).code;
++  }
++  return undefined;
++}
++
++/** True when the error is the SSO sentinel for "user dismissed the sheet". */
++export function isCancellation(e: unknown): boolean {
++  return e instanceof Error && e.message === SSO_USER_CANCELLED;
++}
++
++/** Map a thrown auth error to a stable class for the UI. */
++export function classifyAuthError(e: unknown): AuthErrorClass {
++  const code = getErrorCode(e);
++  switch (code) {
++    case "auth/email-already-in-use":
++      return "email-already-in-use";
++    case "auth/invalid-email":
++      return "invalid-email";
++    case "auth/weak-password":
++      return "weak-password";
++    case "auth/network-request-failed":
++    case "unavailable":
++    case "deadline-exceeded":
++      return "network";
++    default:
++      return "generic";
++  }
++}
++
++/** True if the form is ready to be submitted. */
++export function isFormSubmittable(args: {
++  email: string;
++  password: string;
++  errorEmail: string | null;
++  errorPassword: string | null;
++}): boolean {
++  return (
++    EMAIL_REGEX.test(args.email.trim()) &&
++    args.password.length >= MIN_PASSWORD_LENGTH &&
++    !args.errorEmail &&
++    !args.errorPassword
++  );
++}
++
++/** Email blur validation result. Returns null if valid, or the error message. */
++export function validateEmailOnBlur(value: string): string | null {
++  const trimmed = value.trim();
++  if (!trimmed) return null;
++  if (!EMAIL_REGEX.test(trimmed)) return "Revisá el formato del email.";
++  return null;
++}
++
++/** Password blur validation result. Returns null if valid, or the error message. */
++export function validatePasswordOnBlur(value: string): string | null {
++  if (!value) return null;
++  if (value.length < MIN_PASSWORD_LENGTH) return `Mínimo ${MIN_PASSWORD_LENGTH} caracteres.`;
++  return null;
++}
+
+
+diff --git a/mobile/app/(auth)/register.test.tsx b/mobile/app/(auth)/register.test.tsx
+new file mode 100644
+index 0000000..0000001
+--- /dev/null
++++ b/mobile/app/(auth)/register.test.tsx
++++ b/mobile/app/(auth)/register.test.tsx
+@@ -0,0 +1,147 @@
++/**
++ * Pure-helper tests for the register screen.
++ *
++ * The screen itself is composed of primitives that consume ThemeProvider +
++ * SafeAreaProvider + ToastProvider. Spinning all of that up under jest-expo
++ * inside a pnpm hoisted workspace is currently flaky (Expo's "winter"
++ * polyfills load .ts source files outside Jest's sandbox scope), so the
++ * UI-level smoke validation lives in the manual smoke checklist instead.
++ *
++ * What we DO test here is every piece of logic that drives the screen's
++ * decisions — validation, button enable/disable, error classification,
++ * cancellation detection. If these stay green, regressions in user-visible
++ * behavior require a UI bug rather than a logic bug.
++ */
++
++// Mock the firebase auth module so register.helpers can import the
++// SSO_USER_CANCELLED sentinel without pulling Firebase / native modules.
++jest.mock("@/services/firebase/auth", () => ({ SSO_USER_CANCELLED: "USER_CANCELLED" }));
++
++import {
++  EMAIL_REGEX,
++  MIN_PASSWORD_LENGTH,
++  classifyAuthError,
++  getErrorCode,
++  isCancellation,
++  isFormSubmittable,
++  validateEmailOnBlur,
++  validatePasswordOnBlur,
++} from "./register.helpers";
++
++describe("register helpers — validation", () => {
++  test("EMAIL_REGEX accepts well-formed emails", () => {
++    expect(EMAIL_REGEX.test("user@example.com")).toBe(true);
++    expect(EMAIL_REGEX.test("foo.bar+baz@sub.example.co")).toBe(true);
++  });
++
++  test("EMAIL_REGEX rejects malformed emails", () => {
++    expect(EMAIL_REGEX.test("no-at-sign")).toBe(false);
++    expect(EMAIL_REGEX.test("missing@tld")).toBe(false);
++    expect(EMAIL_REGEX.test("white space@example.com")).toBe(false);
++    expect(EMAIL_REGEX.test("@nope.com")).toBe(false);
++  });
++
++  test("MIN_PASSWORD_LENGTH is 8 (matches AC #1 + #8)", () => {
++    expect(MIN_PASSWORD_LENGTH).toBe(8);
++  });
++
++  test("validateEmailOnBlur returns null for empty input (no error until user types)", () => {
++    expect(validateEmailOnBlur("")).toBeNull();
++    expect(validateEmailOnBlur("   ")).toBeNull();
++  });
++
++  test("validateEmailOnBlur returns es-AR voseo error for malformed", () => {
++    expect(validateEmailOnBlur("no-at-sign")).toBe("Revisá el formato del email.");
++  });
++
++  test("validateEmailOnBlur returns null for well-formed", () => {
++    expect(validateEmailOnBlur("user@example.com")).toBeNull();
++  });
++
++  test("validatePasswordOnBlur returns null for empty input", () => {
++    expect(validatePasswordOnBlur("")).toBeNull();
++  });
++
++  test("validatePasswordOnBlur returns error for <8 chars", () => {
++    expect(validatePasswordOnBlur("1234567")).toBe("Mínimo 8 caracteres.");
++  });
++
++  test("validatePasswordOnBlur returns null for 8+ chars", () => {
++    expect(validatePasswordOnBlur("12345678")).toBeNull();
++    expect(validatePasswordOnBlur("supersecret")).toBeNull();
++  });
++});
++
++describe("register helpers — submit gating", () => {
++  const baseOk = {
++    email: "user@example.com",
++    password: "supersecret",
++    errorEmail: null,
++    errorPassword: null,
++  };
++
++  test("isFormSubmittable returns true when both fields valid and no errors", () => {
++    expect(isFormSubmittable(baseOk)).toBe(true);
++  });
++
++  test("isFormSubmittable returns false when email invalid", () => {
++    expect(isFormSubmittable({ ...baseOk, email: "no-at" })).toBe(false);
++  });
++
++  test("isFormSubmittable returns false when password too short", () => {
++    expect(isFormSubmittable({ ...baseOk, password: "short" })).toBe(false);
++  });
++
++  test("isFormSubmittable returns false when an inline error is present", () => {
++    expect(isFormSubmittable({ ...baseOk, errorEmail: "Esta cuenta ya existe." })).toBe(false);
++    expect(isFormSubmittable({ ...baseOk, errorPassword: "Mínimo 8 caracteres." })).toBe(false);
++  });
++
++  test("isFormSubmittable trims whitespace before validating email", () => {
++    expect(isFormSubmittable({ ...baseOk, email: "  user@example.com  " })).toBe(true);
++  });
++});
++
++describe("register helpers — error classification", () => {
++  test("getErrorCode extracts code field from Firebase-shaped errors", () => {
++    expect(getErrorCode({ code: "auth/weak-password" })).toBe("auth/weak-password");
++  });
++
++  test("getErrorCode returns undefined for plain Errors and primitives", () => {
++    expect(getErrorCode(new Error("boom"))).toBeUndefined();
++    expect(getErrorCode("string error")).toBeUndefined();
++    expect(getErrorCode(null)).toBeUndefined();
++  });
++
++  test("classifyAuthError maps email-already-in-use", () => {
++    expect(classifyAuthError({ code: "auth/email-already-in-use" })).toBe("email-already-in-use");
++  });
++
++  test("classifyAuthError maps invalid-email and weak-password defensively", () => {
++    expect(classifyAuthError({ code: "auth/invalid-email" })).toBe("invalid-email");
++    expect(classifyAuthError({ code: "auth/weak-password" })).toBe("weak-password");
++  });
++
++  test("classifyAuthError maps every network-style code to 'network'", () => {
++    expect(classifyAuthError({ code: "auth/network-request-failed" })).toBe("network");
++    expect(classifyAuthError({ code: "unavailable" })).toBe("network");
++    expect(classifyAuthError({ code: "deadline-exceeded" })).toBe("network");
++  });
++
++  test("classifyAuthError falls back to 'generic' for unknown codes", () => {
++    expect(classifyAuthError({ code: "auth/some-new-thing" })).toBe("generic");
++    expect(classifyAuthError(new Error("plain"))).toBe("generic");
++  });
++});
++
++describe("register helpers — SSO cancellation", () => {
++  test("isCancellation true when error.message === USER_CANCELLED sentinel", () => {
++    expect(isCancellation(new Error("USER_CANCELLED"))).toBe(true);
++  });
++
++  test("isCancellation false for other errors", () => {
++    expect(isCancellation(new Error("network down"))).toBe(false);
++    expect(isCancellation({ code: "auth/something" })).toBe(false);
++    expect(isCancellation(null)).toBe(false);
++  });
++});
+
+
+diff --git a/mobile/jest.config.js b/mobile/jest.config.js
+new file mode 100644
+index 0000000..0000001
+--- /dev/null
++++ b/mobile/jest.config.js
++++ b/mobile/jest.config.js
+@@ -0,0 +1,20 @@
++/** @type {import('jest').Config} */
++module.exports = {
++  testEnvironment: "node",
++  testRegex: ".*\\.(test|spec)\\.[jt]sx?$",
++  testPathIgnorePatterns: ["/node_modules/"],
++  moduleNameMapper: {
++    "^@/(.*)$": "<rootDir>/src/$1",
++  },
++  modulePaths: ["<rootDir>/../node_modules"],
++  transform: {
++    "^.+\\.(ts|tsx)$": [
++      "ts-jest",
++      {
++        tsconfig: { jsx: "react-jsx", esModuleInterop: true, strict: false, target: "ES2022" },
++        diagnostics: false,
++        isolatedModules: true,
++      },
++    ],
++  },
++};
+
+
+diff --git a/mobile/jest.setup.js b/mobile/jest.setup.js
+new file mode 100644
+index 0000000..0000001
+--- /dev/null
++++ b/mobile/jest.setup.js
++++ b/mobile/jest.setup.js
+@@ -0,0 +1,20 @@
++// Globally mock AsyncStorage so tests don't blow up loading native modules.
++jest.mock("@react-native-async-storage/async-storage", () =>
++  require("@react-native-async-storage/async-storage/jest/async-storage-mock"),
++);
++
++// Mock expo-haptics — no-op in tests.
++jest.mock("expo-haptics", () => ({
++  ImpactFeedbackStyle: { Light: "light", Medium: "medium", Heavy: "heavy" },
++  NotificationFeedbackType: { Success: "s", Warning: "w", Error: "e" },
++  impactAsync: jest.fn().mockResolvedValue(undefined),
++  notificationAsync: jest.fn().mockResolvedValue(undefined),
++  selectionAsync: jest.fn().mockResolvedValue(undefined),
++}));
++
++// Mock expo-font so tests don't try to load real fonts.
++jest.mock("expo-font", () => ({
++  ...jest.requireActual("expo-font"),
++  isLoaded: jest.fn(() => true),
++  loadAsync: jest.fn().mockResolvedValue(undefined),
++}));

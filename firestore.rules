@@ -3,17 +3,40 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // This rule allows anyone with your Firestore database reference to view, edit,
-    // and delete all data in your Firestore database. It is useful for getting
-    // started, but it is configured to expire after 30 days because it
-    // leaves your app open to attackers. At that time, all client
-    // requests to your Firestore database will be denied.
+    // Layer 2: Ownership — solo el dueño puede leer/actualizar su doc.
+    // create y delete quedan reservados al Admin SDK (trigger onUserCreated +
+    // deleteAccountHandler), bloqueados para el cliente por defecto.
     //
-    // Make sure to write security rules for your app before that time, or else
-    // all client requests to your Firestore database will be denied until you Update
-    // your rules
+    // Anonymous-auth guard (defense in depth): aunque hoy no se habilita
+    // anonymous auth, si en el futuro se habilita, el cliente anónimo NO
+    // debería poder leer/escribir users/* — bloquearlo aquí evita una clase
+    // entera de bypasses cuando se active.
+    //
+    // Field-level immutability en update: el cliente NO puede modificar
+    // subscriptionTier, stats, uid, email, createdAt — esos son responsabilidad
+    // del backend (callable handlers + webhooks de Mercado Pago en Story 6).
+    match /users/{uid} {
+      allow read: if request.auth != null
+        && request.auth.uid == uid
+        && request.auth.token.firebase.sign_in_provider != "anonymous";
+
+      // Field-level immutability via affectedKeys().hasAny(...) — la forma
+      // canónica en Firestore Rules. Tolera ausencia del campo en ambos
+      // lados (no como `==` que falla si la propiedad no existe).
+      allow update: if request.auth != null
+        && request.auth.uid == uid
+        && request.auth.token.firebase.sign_in_provider != "anonymous"
+        && !request.resource.data.diff(resource.data).affectedKeys()
+             .hasAny(["uid", "email", "subscriptionTier", "stats", "createdAt"]);
+
+      allow create: if false;
+      allow delete: if false;
+    }
+
+    // Catch-all: todo lo demás bloqueado hasta Story 1.7 (multi-tenant rules
+    // completas para vehicles, tasks, businesses, etc.). Defense in depth.
     match /{document=**} {
-      allow read, write: if request.time < timestamp.date(2026, 4, 24);
+      allow read, write: if false;
     }
   }
 }

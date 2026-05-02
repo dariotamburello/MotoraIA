@@ -1,3 +1,4 @@
+import { configureGoogleSignIn } from "@/services/firebase/auth";
 import { auth } from "@/services/firebase/config";
 import { ToastProvider } from "@/shared/components/ToastProvider";
 import { type ActiveRole, activeRoleStorageKey, useAuthStore } from "@/shared/stores/useAuthStore";
@@ -77,6 +78,8 @@ function RootLayoutNav() {
   useAuthGuard();
 
   useEffect(() => {
+    configureGoogleSignIn();
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
 
