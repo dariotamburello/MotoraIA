@@ -25,7 +25,12 @@
       "Bash(node -e \"const pkg = require\\('d:/Repos/thecroatiateam/motora-ia/functions/node_modules/firebase-functions/package.json'\\); console.log\\('firebase-functions version:', pkg.version\\); console.log\\('bin:', JSON.stringify\\(pkg.bin || 'none'\\)\\);\")",
       "Bash(cd d:\\\\\\\\Repos\\\\\\\\thecroatiateam\\\\\\\\motora-ia)",
       "Bash(ls -lh /d/Repos/thecroatiateam/motora-ia/docs/*.md)",
-      "Bash(python3 -m json.tool)"
+      "Bash(python3 -m json.tool)",
+      "PowerShell(pnpm -r --parallel exec tsc --noEmit 2>&1)",
+      "PowerShell($result = pnpm -r --parallel exec tsc --noEmit 2>&1; \"EXIT: $LASTEXITCODE\"; $result | Out-String)",
+      "PowerShell($result = pnpm exec biome check mobile/app/\"\\(auth\\)\"/forgot-password.tsx mobile/app/\"\\(auth\\)\"/login.tsx 2>&1; \"EXIT: $LASTEXITCODE\"; $result | Out-String)",
+      "PowerShell($result = pnpm --filter mobile-app test 2>&1; \"EXIT: $LASTEXITCODE\"; $result | Out-String | Select-Object -Last 60)",
+      "PowerShell($result = pnpm --filter mobile test 2>&1; \"EXIT: $LASTEXITCODE\"; $result | Select-Object -Last 25 | Out-String)"
     ]
   }
 }

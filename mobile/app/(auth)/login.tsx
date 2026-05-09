@@ -200,7 +200,12 @@ export default function LoginScreen() {
   }
 
   function handleForgotPassword() {
-    router.push("/(auth)/forgot-password");
+    // Pasar el email tipeado (.trim() para no propagar trailing whitespace) al
+    // forgot-password screen — UX continuity: el user no re-tipea lo mismo.
+    router.push({
+      pathname: "/(auth)/forgot-password",
+      params: { email: email.trim() },
+    });
   }
 
   function handleSwitchToRegister() {
